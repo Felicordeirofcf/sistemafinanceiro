@@ -12,12 +12,14 @@ from src.models import db_session, init_db
 from src.models.user import User
 from src.models.transaction import Transaction
 from src.models.category import Category
+from src.models.google_calendar_auth import GoogleCalendarAuth
 
 # Importação das rotas
 from src.routes.auth import auth_bp
 from src.routes.transactions import transactions_bp
 from src.routes.dashboard import dashboard_bp
 from src.routes.alerts import alerts_bp
+from src.routes.gcal import gcal_bp
 
 # Criação da aplicação Flask
 app = Flask(__name__)
@@ -40,6 +42,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(transactions_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(alerts_bp)
+app.register_blueprint(gcal_bp)  # Novo blueprint para Google Calendar
 
 # Rota principal - redireciona para o dashboard
 @app.route('/')

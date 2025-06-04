@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Despesas Recorrentes - Sistema Financeiro</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <!-- Navbar -->
+    {% include 'components/navbar.html' %}
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-sync-alt me-2"></i> Despesas Fixas/Recorrentes
+                        </h5>
+                        <div>
+                            <a href="{{ url_for('transactions.generate_recurring') }}" class="btn btn-sm btn-light">
+                                <i class="fas fa-sync me-1"></i> Gerar Próximas Ocorrências
+                            </a>
+                            <button class="btn btn-sm btn-light ms-2" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                                <i class="fas fa-plus me-1"></i> Nova Despesa Recorrente
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if transactions %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Descrição</th>
+                                            <th>Valor</th>
+                                            <th>Categoria</th>
+                                            <th>Frequência</th>
+                                            <th>Início</th>
+                                            <th>Término</th>
+                                            <th>Ocorrências</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for transaction in transactions %}
+                                            <tr>
+                                                <td>
+                                                    <span class="fw-medium">{{ transaction.descricao }}</span>
+                                                </td>
+                                                <td>R$ {{ "%.2f"|format(transaction.valor/100).replace('.', ',') }}</td>
+                                                <td>
+                                                    {% if transaction.categoria %}
+                                                        <span class="badge" style="background-color: {{ transaction.categoria.cor }}">
+                                                            <i class="fas {{ transaction.categoria.icone }} me-1"></i>
+                                                            {{ transaction.categoria.nome }}
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Sem categoria</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">{{ transaction.recurrence_frequency.capitalize() }}</span>
+                                                </td>
+                                                <td>{{ transaction.recurrence_start_date }}</td>
+                                                <td>
+                                                    {% if transaction.recurrence_end_date %}
+                                                        {{ transaction.recurrence_end_date }}
+                                                    {% else %}
+                                                        <span class="text-muted">Sem fim</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-primary">{{ transaction.child_transactions|length }} ocorrências</span>
+                                                </td>
+                                                <td>
+                                                    <div class="btn-group btn-group-sm">
+                                                        <button class="btn btn-outline-primary edit-btn" 
+                                                                data-id="{{ transaction.id }}"
+                                                                data-descricao="{{ transaction.descricao }}"
+                                                                data-valor="{{ "%.2f"|format(transaction.valor/100).replace('.', ',') }}"
+                                                                data-tipo="{{ transaction.tipo }}"
+                                                                data-data="{{ transaction.data }}"
+                                                                data-vencimento="{{ transaction.vencimento or '' }}"
+                                                                data-categoria="{{ transaction.categoria_id or '' }}"
+                                                                data-observacoes="{{ transaction.observacoes or '' }}"
+                                                                data-is-recurring="{{ 'true' if transaction.is_recurring else 'false' }}"
+                                                                data-recurrence-frequency="{{ transaction.recurrence_frequency or '' }}"
+                                                                data-recurrence-end-date="{{ transaction.recurrence_end_date or '' }}"
+                                                                data-bs-toggle="modal" 
+                                                                data-bs-target="#transactionModal">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <a href="{{ url_for('transactions.delete', id=transaction.id, delete_all_future='true') }}" 
+                                                           class="btn btn-outline-danger"
+                                                           onclick="return confirm('Tem certeza que deseja excluir esta despesa recorrente e todas as suas ocorrências futuras?')">
+                                                            <i class="fas fa-trash"></i>
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i> Você ainda não tem despesas fixas/recorrentes cadastradas.
+                            </div>
+                            <div class="text-center py-4">
+                                <img src="{{ url_for('static', filename='img/empty-state.svg') }}" alt="Sem despesas recorrentes" class="mb-3" style="height: 150px; opacity: 0.7;">
+                                <h5>Sem despesas recorrentes</h5>
+                                <p class="text-muted">Adicione suas despesas fixas para controlar melhor seus gastos recorrentes.</p>
+                                <button class="btn btn-primary mt-2" data-bs-toggle="modal" data-bs-target="#transactionModal">
+                                    <i class="fas fa-plus me-2"></i> Adicionar Despesa Recorrente
+                                </button>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i> Sobre Despesas Fixas/Recorrentes
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-check-circle text-success me-2"></i> Como funcionam as despesas recorrentes?</h6>
+                                <p class="text-muted">
+                                    Despesas recorrentes são geradas automaticamente com base na frequência definida.
+                                    Você pode configurar despesas mensais, bimestrais, trimestrais, semestrais ou anuais.
+                                </p>
+                                
+                                <h6><i class="fas fa-check-circle text-success me-2"></i> Como editar uma série recorrente?</h6>
+                                <p class="text-muted">
+                                    Ao editar uma despesa recorrente, você pode escolher entre atualizar apenas a ocorrência
+                                    atual ou todas as ocorrências futuras da série.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-check-circle text-success me-2"></i> Posso definir um prazo para a recorrência?</h6>
+                                <p class="text-muted">
+                                    Sim! Você pode definir uma data de término para a recorrência ou deixar em branco
+                                    para que a despesa seja gerada indefinidamente.
+                                </p>
+                                
+                                <h6><i class="fas fa-check-circle text-success me-2"></i> Como as despesas recorrentes aparecem no calendário?</h6>
+                                <p class="text-muted">
+                                    Cada ocorrência de uma despesa recorrente aparece individualmente no calendário
+                                    e no Google Calendar (se a integração estiver ativada).
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Transação -->
+    {% include 'components/transaction_modal.html' %}
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Configuração para edição de transação
+            const editButtons = document.querySelectorAll('.edit-btn');
+            const transactionForm = document.getElementById('transactionForm');
+            const transactionModalLabel = document.getElementById('transactionModalLabel');
+            
+            editButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    const descricao = this.getAttribute('data-descricao');
+                    const valor = this.getAttribute('data-valor');
+                    const tipo = this.getAttribute('data-tipo');
+                    const data = this.getAttribute('data-data');
+                    const vencimento = this.getAttribute('data-vencimento');
+                    const categoria = this.getAttribute('data-categoria');
+                    const observacoes = this.getAttribute('data-observacoes');
+                    const isRecurring = this.getAttribute('data-is-recurring') === 'true';
+                    const recurrenceFrequency = this.getAttribute('data-recurrence-frequency');
+                    const recurrenceEndDate = this.getAttribute('data-recurrence-end-date');
+                    
+                    // Atualiza o título do modal
+                    transactionModalLabel.textContent = 'Editar Despesa Recorrente';
+                    
+                    // Atualiza o action do formulário
+                    transactionForm.action = `/transactions/edit/${id}`;
+                    
+                    // Preenche os campos do formulário
+                    document.getElementById('transaction_id').value = id;
+                    document.getElementById('descricao').value = descricao;
+                    document.getElementById('valor').value = valor;
+                    document.getElementById('tipo').value = tipo;
+                    document.getElementById('data').value = data;
+                    if (vencimento) document.getElementById('vencimento').value = vencimento;
+                    if (categoria) document.getElementById('categoria_id').value = categoria;
+                    document.getElementById('observacoes').value = observacoes;
+                    
+                    // Campos de recorrência
+                    document.getElementById('is_recurring').checked = isRecurring;
+                    if (isRecurring) {
+                        document.querySelector('.recurring-fields').style.display = 'flex';
+                        document.getElementById('recurrence_frequency').value = recurrenceFrequency;
+                        if (recurrenceEndDate) document.getElementById('recurrence_end_date').value = recurrenceEndDate;
+                    }
+                    
+                    // Adiciona campo para atualizar todas as ocorrências futuras
+                    if (!document.getElementById('update_all_future_container')) {
+                        const container = document.createElement('div');
+                        container.id = 'update_all_future_container';
+                        container.className = 'mb-3';
+                        container.innerHTML = `
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="update_all_future" name="update_all_future" checked>
+                                <label class="form-check-label" for="update_all_future">
+                                    Atualizar todas as ocorrências futuras
+                                </label>
+                            </div>
+                        `;
+                        document.querySelector('.recurring-fields').after(container);
+                    }
+                    
+                    // Atualiza visibilidade dos campos com base no tipo
+                    const tipoSelect = document.getElementById('tipo');
+                    const vencimentoField = document.querySelector('.vencimento-field');
+                    const recurringOptions = document.querySelector('.recurring-options');
+                    
+                    vencimentoField.style.display = tipo === 'despesa' ? 'block' : 'none';
+                    recurringOptions.style.display = tipo === 'despesa' ? 'block' : 'none';
+                    
+                    // Filtra categorias
+                    const categoriaSelect = document.getElementById('categoria_id');
+                    const options = categoriaSelect.querySelectorAll('option');
+                    
+                    options.forEach(option => {
+                        if (option.value === '') return;
+                        const categoriaTipo = option.getAttribute('data-tipo');
+                        option.style.display = (categoriaTipo === tipo) ? '' : 'none';
+                    });
+                });
+            });
+            
+            // Reset do formulário quando o modal for fechado
+            const transactionModal = document.getElementById('transactionModal');
+            transactionModal.addEventListener('hidden.bs.modal', function() {
+                transactionForm.reset();
+                transactionForm.action = "{{ url_for('transactions.add') }}";
+                transactionModalLabel.textContent = 'Nova Transação';
+                
+                // Remove o campo de atualização de todas as ocorrências
+                const updateAllFutureContainer = document.getElementById('update_all_future_container');
+                if (updateAllFutureContainer) {
+                    updateAllFutureContainer.remove();
+                }
+                
+                // Esconde os campos de recorrência
+                document.querySelector('.recurring-fields').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

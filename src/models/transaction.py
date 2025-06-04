@@ -1,43 +1,36 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
-from sqlalchemy.sql import func
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, Date
 from sqlalchemy.orm import relationship
 from src.models import Base
 
 class Transaction(Base):
-    """Modelo de transação financeira"""
+    """Modelo para transações financeiras"""
     __tablename__ = 'transactions'
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    tipo = Column(String(20), nullable=False)  # 'receita' ou 'despesa'
-    valor = Column(Float, nullable=False)
-    data = Column(String(10), nullable=False)  # Formato YYYY-MM-DD
-    descricao = Column(String(200), nullable=False)
-    categoria_id = Column(Integer, ForeignKey('categories.id'), nullable=False)
+    descricao = Column(String(255), nullable=False)
+    valor = Column(Integer, nullable=False)  # Valor em centavos
+    tipo = Column(String(50), nullable=False)  # 'receita' ou 'despesa'
+    data = Column(String(10), nullable=False)  # Formato: YYYY-MM-DD
+    vencimento = Column(String(10), nullable=True)  # Formato: YYYY-MM-DD (apenas para despesas)
     pago = Column(Boolean, default=False)
-    vencimento = Column(String(10), nullable=True)  # Formato YYYY-MM-DD
-    notificado = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=func.now())
-
+    categoria_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
+    gcal_event_id = Column(String(255), nullable=True)  # ID do evento no Google Calendar
+    observacoes = Column(Text, nullable=True)
+    
+    # Campos para despesas recorrentes
+    is_recurring = Column(Boolean, default=False)  # Indica se é uma despesa recorrente
+    recurrence_frequency = Column(String(50), nullable=True)  # mensal, trimestral, semestral, anual
+    recurrence_start_date = Column(String(10), nullable=True)  # Data de início da recorrência
+    recurrence_end_date = Column(String(10), nullable=True)  # Data de término da recorrência (opcional)
+    parent_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)  # ID da transação original
+    
     # Relacionamentos
-    user = relationship("User", backref="transactions")
-    categoria = relationship("Category", backref="transactions")
+    categoria = relationship("Category", back_populates="transacoes")
+    child_transactions = relationship("Transaction", 
+                                     foreign_keys=[parent_transaction_id],
+                                     backref="parent_transaction",
+                                     remote_side=[id])
 
     def __repr__(self):
-        return f'<Transaction {self.descricao}: R${self.valor:.2f}>'
-    
-    def to_dict(self):
-        """Converte o objeto para um dicionário"""
-        return {
-            'id': self.id,
-            'tipo': self.tipo,
-            'valor': self.valor,
-            'data': self.data,
-            'descricao': self.descricao,
-            'categoria': self.categoria.nome if self.categoria else None,
-            'categoria_id': self.categoria_id,
-            'pago': self.pago,
-            'vencimento': self.vencimento,
-            'cor': self.categoria.cor if self.categoria else '#3498db',
-            'icone': self.categoria.icone if self.categoria else 'fa-tag'
-        }
+        return f'<Transaction {self.descricao} {self.valor}>'

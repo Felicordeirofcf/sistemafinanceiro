@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adicionar Transação - Sistema Financeiro</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="transactionModalLabel">Nova Transação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <form action="{{ url_for('transactions.add') }}" method="POST" id="transactionForm">
+                        <input type="hidden" name="id" id="transaction_id">
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="descricao" class="form-label">Descrição</label>
+                                <input type="text" class="form-control" id="descricao" name="descricao" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="valor" class="form-label">Valor (R$)</label>
+                                <input type="text" class="form-control" id="valor" name="valor" required>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="tipo" class="form-label">Tipo</label>
+                                <select class="form-select" id="tipo" name="tipo" required>
+                                    <option value="receita">Receita</option>
+                                    <option value="despesa">Despesa</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="categoria_id" class="form-label">Categoria</label>
+                                <select class="form-select" id="categoria_id" name="categoria_id">
+                                    <option value="">Selecione uma categoria</option>
+                                    {% for categoria in categories %}
+                                        {% if categoria.tipo == 'receita' %}
+                                            <option value="{{ categoria.id }}" data-tipo="receita" class="categoria-receita">
+                                                <i class="fas {{ categoria.icone }}"></i> {{ categoria.nome }}
+                                            </option>
+                                        {% else %}
+                                            <option value="{{ categoria.id }}" data-tipo="despesa" class="categoria-despesa">
+                                                <i class="fas {{ categoria.icone }}"></i> {{ categoria.nome }}
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="data" class="form-label">Data</label>
+                                <input type="date" class="form-control" id="data" name="data" required>
+                            </div>
+                            <div class="col-md-6 vencimento-field">
+                                <label for="vencimento" class="form-label">Data de Vencimento</label>
+                                <input type="date" class="form-control" id="vencimento" name="vencimento">
+                                <small class="text-muted">Apenas para despesas</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Campos para despesas recorrentes -->
+                        <div class="mb-3 recurring-options">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_recurring" name="is_recurring">
+                                <label class="form-check-label" for="is_recurring">
+                                    Despesa fixa/recorrente
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3 recurring-fields" style="display: none;">
+                            <div class="col-md-6">
+                                <label for="recurrence_frequency" class="form-label">Frequência</label>
+                                <select class="form-select" id="recurrence_frequency" name="recurrence_frequency">
+                                    <option value="mensal">Mensal</option>
+                                    <option value="bimestral">Bimestral</option>
+                                    <option value="trimestral">Trimestral</option>
+                                    <option value="semestral">Semestral</option>
+                                    <option value="anual">Anual</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="recurrence_end_date" class="form-label">Data de término (opcional)</label>
+                                <input type="date" class="form-control" id="recurrence_end_date" name="recurrence_end_date">
+                                <small class="text-muted">Deixe em branco para recorrência sem fim</small>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="observacoes" class="form-label">Observações</label>
+                            <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Controle de visibilidade dos campos de vencimento
+            const tipoSelect = document.getElementById('tipo');
+            const vencimentoField = document.querySelector('.vencimento-field');
+            const recurringOptions = document.querySelector('.recurring-options');
+            const recurringFields = document.querySelector('.recurring-fields');
+            const isRecurringCheckbox = document.getElementById('is_recurring');
+            
+            // Função para mostrar/esconder campos de vencimento e recorrência
+            function updateFieldsVisibility() {
+                const isTipoDespesa = tipoSelect.value === 'despesa';
+                vencimentoField.style.display = isTipoDespesa ? 'block' : 'none';
+                recurringOptions.style.display = isTipoDespesa ? 'block' : 'none';
+                
+                // Se mudar para receita, desmarcar a opção de recorrência
+                if (!isTipoDespesa) {
+                    isRecurringCheckbox.checked = false;
+                    recurringFields.style.display = 'none';
+                }
+            }
+            
+            // Atualizar visibilidade inicial
+            updateFieldsVisibility();
+            
+            // Atualizar quando o tipo mudar
+            tipoSelect.addEventListener('change', updateFieldsVisibility);
+            
+            // Controle de visibilidade dos campos de recorrência
+            isRecurringCheckbox.addEventListener('change', function() {
+                recurringFields.style.display = this.checked ? 'flex' : 'none';
+            });
+            
+            // Filtrar categorias com base no tipo selecionado
+            tipoSelect.addEventListener('change', function() {
+                const tipo = this.value;
+                const categoriaSelect = document.getElementById('categoria_id');
+                const options = categoriaSelect.querySelectorAll('option');
+                
+                options.forEach(option => {
+                    if (option.value === '') return; // Pular a opção "Selecione uma categoria"
+                    
+                    const categoriaTipo = option.getAttribute('data-tipo');
+                    option.style.display = (categoriaTipo === tipo) ? '' : 'none';
+                });
+                
+                // Resetar a seleção
+                categoriaSelect.value = '';
+            });
+            
+            // Formatar valor como moeda
+            const valorInput = document.getElementById('valor');
+            valorInput.addEventListener('input', function(e) {
+                let value = e.target.value.replace(/\D/g, '');
+                if (value === '') return e.target.value = '';
+                
+                value = (parseInt(value) / 100).toFixed(2);
+                e.target.value = value.replace('.', ',');
+            });
+            
+            // Preencher data atual por padrão
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('data').value = today;
+        });
+    </script>
+</body>
+</html>
