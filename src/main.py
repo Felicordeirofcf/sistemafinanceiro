@@ -5,21 +5,37 @@ import sys
 from datetime import datetime, timedelta
 
 # Configuração do caminho para importações
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
 
 # Importação dos modelos e sessão do banco de dados
-from src.models import db_session, init_db
-from src.models.user import User
-from src.models.transaction import Transaction
-from src.models.category import Category
-from src.models.google_calendar_auth import GoogleCalendarAuth
+try:
+    from src.models import db_session, init_db
+    from src.models.user import User
+    from src.models.transaction import Transaction
+    from src.models.category import Category
+    from src.models.google_calendar_auth import GoogleCalendarAuth
 
-# Importação das rotas
-from src.routes.auth import auth_bp
-from src.routes.transactions import transactions_bp
-from src.routes.dashboard import dashboard_bp
-from src.routes.alerts import alerts_bp
-from src.routes.gcal import gcal_bp
+    # Importação das rotas
+    from src.routes.auth import auth_bp
+    from src.routes.transactions import transactions_bp
+    from src.routes.dashboard import dashboard_bp
+    from src.routes.alerts import alerts_bp
+    from src.routes.gcal import gcal_bp
+except ImportError:
+    from models import db_session, init_db
+    from models.user import User
+    from models.transaction import Transaction
+    from models.category import Category
+    from models.google_calendar_auth import GoogleCalendarAuth
+
+    # Importação das rotas
+    from routes.auth import auth_bp
+    from routes.transactions import transactions_bp
+    from routes.dashboard import dashboard_bp
+    from routes.alerts import alerts_bp
+    from routes.gcal import gcal_bp
 
 # Criação da aplicação Flask
 app = Flask(__name__)

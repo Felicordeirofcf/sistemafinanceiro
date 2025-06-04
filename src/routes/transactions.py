@@ -1,13 +1,20 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-import calendar
 from dateutil.relativedelta import relativedelta
-from src.models import db_session
-from src.models.transaction import Transaction
-from src.models.category import Category
-from src.models.google_calendar_auth import GoogleCalendarAuth
-from src.routes.gcal import sync_transaction
+
+try:
+    from src.models import db_session
+    from src.models.transaction import Transaction
+    from src.models.category import Category
+    from src.models.google_calendar_auth import GoogleCalendarAuth
+    from src.routes.gcal import sync_transaction
+except ImportError:
+    from models import db_session
+    from models.transaction import Transaction
+    from models.category import Category
+    from models.google_calendar_auth import GoogleCalendarAuth
+    from routes.gcal import sync_transaction
 
 transactions_bp = Blueprint('transactions', __name__, url_prefix='/transactions')
 
