@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resultados da Busca - Sistema Financeiro</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- DataTables -->
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">
+                <i class="fas fa-wallet me-2"></i>Sistema Financeiro
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('dashboard.index') }}">
+                            <i class="fas fa-chart-pie me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#" data-bs-toggle="modal" data-bs-target="#searchModal">
+                            <i class="fas fa-search me-1"></i>Busca Avançada
+                        </a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle me-1"></i>{{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-cog me-2"></i>Configurações</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Sair</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Conteúdo Principal -->
+    <div class="container-fluid py-4">
+        <!-- Mensagens Flash -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Resultados da Busca -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold">Resultados da Busca</h6>
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Voltar ao Dashboard
+                </a>
+            </div>
+            <div class="card-body">
+                <!-- Filtros Aplicados -->
+                <div class="mb-4">
+                    <h6>Filtros Aplicados:</h6>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if query %}
+                            <span class="badge bg-primary">Descrição: {{ query }}</span>
+                        {% endif %}
+                        {% if categoria and categoria != 'todas' %}
+                            <span class="badge bg-primary">Categoria: {{ categoria }}</span>
+                        {% endif %}
+                        {% if tipo and tipo != 'todos' %}
+                            <span class="badge bg-primary">Tipo: {{ tipo }}</span>
+                        {% endif %}
+                        {% if status %}
+                            <span class="badge bg-primary">Status: {{ status }}</span>
+                        {% endif %}
+                        {% if data_inicio %}
+                            <span class="badge bg-primary">Data Início: {{ data_inicio }}</span>
+                        {% endif %}
+                        {% if data_fim %}
+                            <span class="badge bg-primary">Data Fim: {{ data_fim }}</span>
+                        {% endif %}
+                        {% if valor_min %}
+                            <span class="badge bg-primary">Valor Mínimo: R$ {{ valor_min }}</span>
+                        {% endif %}
+                        {% if valor_max %}
+                            <span class="badge bg-primary">Valor Máximo: R$ {{ valor_max }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Tabela de Resultados -->
+                <div class="table-responsive">
+                    <table class="table table-hover" id="searchResultsTable">
+                        <thead>
+                            <tr>
+                                <th>Descrição</th>
+                                <th>Categoria</th>
+                                <th>Data</th>
+                                <th>Valor</th>
+                                <th>Status</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                                <tr class="{% if transaction.tipo == 'receita' %}table-success{% elif transaction.tipo == 'despesa' and transaction.pago %}table-info{% elif transaction.tipo == 'despesa' and not transaction.pago %}table-warning{% endif %}">
+                                    <td>{{ transaction.descricao }}</td>
+                                    <td>
+                                        <i class="fas {{ transaction.categoria.icone }}" style="color: {{ transaction.categoria.cor }}"></i>
+                                        {{ transaction.categoria.nome }}
+                                    </td>
+                                    <td>{{ transaction.data }}</td>
+                                    <td>R$ {{ "%.2f"|format(transaction.valor) }}</td>
+                                    <td>
+                                        {% if transaction.tipo == 'receita' %}
+                                            <span class="badge bg-success">Receita</span>
+                                        {% elif transaction.tipo == 'despesa' and transaction.pago %}
+                                            <span class="badge bg-info">Paga</span>
+                                        {% elif transaction.tipo == 'despesa' and not transaction.pago %}
+                                            <span class="badge bg-warning text-dark">Pendente</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            {% if transaction.tipo == 'despesa' %}
+                                                <form action="{{ url_for('transactions.toggle_paid_status', transaction_id=transaction.id) }}" method="post" style="display: inline;">
+                                                    <button type="submit" class="btn btn-sm {% if transaction.pago %}btn-warning{% else %}btn-info{% endif %}" title="{{ 'Marcar como não paga' if transaction.pago else 'Marcar como paga' }}">
+                                                        <i class="fas {% if transaction.pago %}fa-times-circle{% else %}fa-check-circle{% endif %}"></i>
+                                                    </button>
+                                                </form>
+                                            {% endif %}
+                                            <form action="{{ url_for('transactions.delete_transaction', transaction_id=transaction.id) }}" method="post" style="display: inline;" onsubmit="return confirm('Tem certeza que deseja excluir esta transação?');">
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Excluir">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center">Nenhuma transação encontrada com os filtros aplicados.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resumo dos Resultados -->
+        {% if transactions %}
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card shadow-sm">
+                        <div class="card-header py-3">
+                            <h6 class="m-0 font-weight-bold">Resumo dos Resultados</h6>
+                        </div>
+                        <div class="card-body">
+                            <p><strong>Total de Transações:</strong> {{ transactions|length }}</p>
+                            <p><strong>Total de Receitas:</strong> R$ {{ "%.2f"|format(transactions|selectattr('tipo', 'equalto', 'receita')|sum(attribute='valor')) }}</p>
+                            <p><strong>Total de Despesas:</strong> R$ {{ "%.2f"|format(transactions|selectattr('tipo', 'equalto', 'despesa')|sum(attribute='valor')) }}</p>
+                            <p><strong>Despesas Pagas:</strong> R$ {{ "%.2f"|format(transactions|selectattr('tipo', 'equalto', 'despesa')|selectattr('pago')|sum(attribute='valor')) }}</p>
+                            <p><strong>Despesas Pendentes:</strong> R$ {{ "%.2f"|format(transactions|selectattr('tipo', 'equalto', 'despesa')|rejectattr('pago')|sum(attribute='valor')) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Modal de Busca Avançada -->
+    <div class="modal fade" id="searchModal" tabindex="-1" aria-labelledby="searchModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="searchModalLabel">Busca Avançada</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="searchForm" action="{{ url_for('transactions.search_transactions') }}" method="get">
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="query" class="form-label">Descrição:</label>
+                                <input type="text" class="form-control" id="query" name="query" placeholder="Buscar por descrição..." value="{{ query }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label for="categoria" class="form-label">Categoria:</label>
+                                <select class="form-select" id="search-categoria" name="categoria">
+                                    <option value="todas" {% if categoria == 'todas' %}selected{% endif %}>Todas</option>
+                                    <optgroup label="Receitas">
+                                        {% for category in categories %}
+                                            {% if category.tipo == 'receita' %}
+                                                <option value="{{ category.id }}" {% if categoria == category.id|string %}selected{% endif %}>{{ category.nome }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </optgroup>
+                                    <optgroup label="Despesas">
+                                        {% for category in categories %}
+                                            {% if category.tipo == 'despesa' %}
+                                                <option value="{{ category.id }}" {% if categoria == category.id|string %}selected{% endif %}>{{ category.nome }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </optgroup>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="tipo" class="form-label">Tipo:</label>
+                                <select class="form-select" id="tipo" name="tipo">
+                                    <option value="todos" {% if tipo == 'todos' %}selected{% endif %}>Todos</option>
+                                    <option value="receita" {% if tipo == 'receita' %}selected{% endif %}>Receitas</option>
+                                    <option value="despesa" {% if tipo == 'despesa' %}selected{% endif %}>Despesas</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="status" class="form-label">Status:</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="" {% if not status %}selected{% endif %}>Todos</option>
+                                    <option value="pago" {% if status == 'pago' %}selected{% endif %}>Pagas</option>
+                                    <option value="nao_pago" {% if status == 'nao_pago' %}selected{% endif %}>Não Pagas</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="data_inicio" class="form-label">Data Início:</label>
+                                <input type="date" class="form-control" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="data_fim" class="form-label">Data Fim:</label>
+                                <input type="date" class="form-control" id="data_fim" name="data_fim" value="{{ data_fim }}">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="valor_min" class="form-label">Valor Mínimo:</label>
+                                <input type="number" class="form-control" id="valor_min" name="valor_min" step="0.01" value="{{ valor_min }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="valor_max" class="form-label">Valor Máximo:</label>
+                                <input type="number" class="form-control" id="valor_max" name="valor_max" step="0.01" value="{{ valor_max }}">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" form="searchForm" class="btn btn-primary">Buscar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+    
+    <script>
+        // Inicialização do DataTables
+        $(document).ready(function() {
+            $('#searchResultsTable').DataTable({
+                language: {
+                    url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'
+                },
+                order: [[2, 'desc']], // Ordena por data (coluna 2) decrescente
+                responsive: true
+            });
+        });
+    </script>
+</body>
+</html>

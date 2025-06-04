@@ -1,0 +1,30 @@
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
+from src.models import Base
+
+class Category(Base):
+    """Modelo de categoria para transações"""
+    __tablename__ = 'categories'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    nome = Column(String(50), nullable=False)
+    tipo = Column(String(20), nullable=False)  # 'receita' ou 'despesa'
+    cor = Column(String(7), default='#3498db')  # Formato hexadecimal (#RRGGBB)
+    icone = Column(String(30), default='fa-tag')  # Ícone FontAwesome
+
+    # Relacionamentos
+    user = relationship("User", backref="categories")
+
+    def __repr__(self):
+        return f'<Category {self.nome}>'
+    
+    def to_dict(self):
+        """Converte o objeto para um dicionário"""
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'tipo': self.tipo,
+            'cor': self.cor,
+            'icone': self.icone
+        }

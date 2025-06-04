@@ -1,0 +1,171 @@
+/* Estilos para o dashboard */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Navbar */
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Cards */
+.card {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    font-weight: 600;
+}
+
+/* Cards de resumo */
+.border-left-primary {
+    border-left: 4px solid #3498db;
+}
+
+.border-left-success {
+    border-left: 4px solid #2ecc71;
+}
+
+.border-left-danger {
+    border-left: 4px solid #e74c3c;
+}
+
+.border-left-warning {
+    border-left: 4px solid #f39c12;
+}
+
+/* Gráficos */
+.chart-container {
+    position: relative;
+    height: 250px;
+    width: 100%;
+}
+
+/* Calendário */
+#calendar {
+    height: 500px;
+}
+
+.fc-event {
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+
+.fc-event-title {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Tabela de transações */
+.table th {
+    font-weight: 600;
+    border-top: none;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Formulários */
+.form-control:focus, .form-select:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+}
+
+/* Botões */
+.btn-primary {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    border: none;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #2980b9, #1c6ea4);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4);
+}
+
+/* Alertas */
+.alert {
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* Dropdown de alertas */
+#alerts-dropdown {
+    width: 300px;
+    padding: 0;
+}
+
+#alerts-dropdown .dropdown-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+#alerts-dropdown .dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Responsividade */
+@media (max-width: 992px) {
+    .chart-container {
+        height: 200px;
+    }
+    
+    #calendar {
+        height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .card {
+        margin-bottom: 15px;
+    }
+    
+    .chart-container {
+        height: 180px;
+    }
+    
+    #calendar {
+        height: 350px;
+    }
+}
+
+@media (max-width: 576px) {
+    .container-fluid {
+        padding: 10px;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    .chart-container {
+        height: 160px;
+    }
+    
+    #calendar {
+        height: 300px;
+    }
+    
+    .table-responsive {
+        font-size: 0.9rem;
+    }
+}
