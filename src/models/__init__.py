@@ -4,7 +4,14 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 import os
 
 # Configuração do banco de dados
-DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///finance.db')
+# Define o caminho absoluto para o banco de dados dentro do diretório src
+src_dir = os.path.dirname(os.path.abspath(__file__))
+src_dir = os.path.dirname(src_dir) # Sobe um nível para /src
+db_name = 'finance.db'
+db_path = os.path.join(src_dir, db_name)
+DATABASE_URL = os.getenv('DATABASE_URL', f'sqlite:///{db_path}')
+
+print(f"Usando DATABASE_URL: {DATABASE_URL}") # Log para depuração
 
 engine = create_engine(DATABASE_URL)
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))

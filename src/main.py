@@ -32,35 +32,52 @@ def update_database_schema():
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
+        # Verifica s        cursor = conn.cursor()
+
+        # --- Check users table ---
+        try:
+            cursor.execute("PRAGMA table_info(users)")
+            user_columns = [column[1] for column in cursor.fetchall()]
+            if 'password_hash' not in user_columns:
+                print("Adicionando coluna password_hash à tabela users")
+                # Adiciona com DEFAULT para satisfazer NOT NULL constraint
+                cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(256) NOT NULL DEFAULT 'needs_update'")
+                print("Coluna password_hash adicionada com valor padrão 'needs_update'.")
+        except sqlite3.OperationalError as e:
+            # Ignora erro se a tabela 'users' ainda não existe (será criada por init_db)
+            if "no such table: users" not in str(e):
+                print(f"Erro ao verificar/adicionar coluna password_hash: {e}")
+                # Decide se quer parar ou continuar. Por enquanto, vamos logar e continuar.
+
         # Verifica se a coluna gcal_event_id existe na tabela transactions
         cursor.execute("PRAGMA table_info(transactions)")
-        columns = [column[1] for column in cursor.fetchall()]
-        
-        # Adiciona as colunas que faltam
-        missing_columns = []
-        
+        transaction_columns = [column[1] for column in cursor.fetchall()] # Renamed original 'columns'
+
+        # Adiciona as colunas que faltam na tabela transactions
+        missing_transaction_columns = [] # Renamed variable for clarity
+
         # Verifica gcal_event_id
-        if 'gcal_event_id' not in columns:
-            missing_columns.append(("gcal_event_id", "VARCHAR(255)"))
-        
+        if 'gcal_event_id' not in transaction_columns: # Use renamed variable
+            missing_transaction_columns.append(("gcal_event_id", "VARCHAR(255)"))
+
         # Verifica campos de recorrência
-        if 'is_recurring' not in columns:
-            missing_columns.append(("is_recurring", "BOOLEAN DEFAULT 0"))
-        
-        if 'recurrence_frequency' not in columns:
-            missing_columns.append(("recurrence_frequency", "VARCHAR(50)"))
-        
-        if 'recurrence_start_date' not in columns:
-            missing_columns.append(("recurrence_start_date", "VARCHAR(10)"))
-        
-        if 'recurrence_end_date' not in columns:
-            missing_columns.append(("recurrence_end_date", "VARCHAR(10)"))
-        
-        if 'parent_transaction_id' not in columns:
-            missing_columns.append(("parent_transaction_id", "INTEGER"))
-        
-        # Adiciona as colunas que faltam
-        for column_name, column_type in missing_columns:
+        if 'is_recurring' not in transaction_columns: # Use renamed variable
+            missing_transaction_columns.append(("is_recurring", "BOOLEAN DEFAULT 0"))
+
+        if 'recurrence_frequency' not in transaction_columns: # Use renamed variable
+            missing_transaction_columns.append(("recurrence_frequency", "VARCHAR(50)"))
+
+        if 'recurrence_start_date' not in transaction_columns: # Use renamed variable
+            missing_transaction_columns.append(("recurrence_start_date", "VARCHAR(10)"))
+
+        if 'recurrence_end_date' not in transaction_columns: # Use renamed variable
+            missing_transaction_columns.append(("recurrence_end_date", "VARCHAR(10)"))
+
+        if 'parent_transaction_id' not in transaction_columns: # Use renamed variable
+            missing_transaction_columns.append(("parent_transaction_id", "INTEGER"))
+
+        # Adiciona as colunas que faltam na tabela transactions
+        for column_name, column_type in missing_transaction_columns: # Use renamed variable
             print(f"Adicionando coluna {column_name} à tabela transactions")
             cursor.execute(f"ALTER TABLE transactions ADD COLUMN {column_name} {column_type}")
         
