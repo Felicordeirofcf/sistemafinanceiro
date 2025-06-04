@@ -3,6 +3,7 @@ from flask_login import LoginManager, current_user, login_required
 import os
 import sys
 from datetime import datetime, timedelta
+import sqlite3
 
 # Configuração do caminho para importações
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -72,8 +73,89 @@ def index():
 def shutdown_session(exception=None):
     db_session.remove()
 
+# Função para verificar e atualizar o esquema do banco de dados
+def update_database_schema():
+    """Verifica e atualiza o esquema do banco de dados se necessário"""
+    # Obtém o caminho do banco de dados SQLite
+    db_path = app.config['SQLALCHEMY_DATABASE_URI'].replace('sqlite:///', '')
+    
+    # Se for uma URL de banco de dados PostgreSQL ou outro, não faz nada
+    if not db_path.endswith('.db'):
+        print("Banco de dados não é SQLite, pulando verificação de esquema")
+        return
+    
+    # Verifica se o arquivo existe
+    if not os.path.exists(db_path):
+        print(f"Banco de dados {db_path} não encontrado, será criado automaticamente")
+        return
+    
+    try:
+        # Conecta ao banco de dados
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        # Verifica se a coluna gcal_event_id existe na tabela transactions
+        cursor.execute("PRAGMA table_info(transactions)")
+        columns = [column[1] for column in cursor.fetchall()]
+        
+        # Adiciona as colunas que faltam
+        missing_columns = []
+        
+        # Verifica gcal_event_id
+        if 'gcal_event_id' not in columns:
+            missing_columns.append(("gcal_event_id", "VARCHAR(255)"))
+        
+        # Verifica campos de recorrência
+        if 'is_recurring' not in columns:
+            missing_columns.append(("is_recurring", "BOOLEAN DEFAULT 0"))
+        
+        if 'recurrence_frequency' not in columns:
+            missing_columns.append(("recurrence_frequency", "VARCHAR(50)"))
+        
+        if 'recurrence_start_date' not in columns:
+            missing_columns.append(("recurrence_start_date", "VARCHAR(10)"))
+        
+        if 'recurrence_end_date' not in columns:
+            missing_columns.append(("recurrence_end_date", "VARCHAR(10)"))
+        
+        if 'parent_transaction_id' not in columns:
+            missing_columns.append(("parent_transaction_id", "INTEGER"))
+        
+        # Adiciona as colunas que faltam
+        for column_name, column_type in missing_columns:
+            print(f"Adicionando coluna {column_name} à tabela transactions")
+            cursor.execute(f"ALTER TABLE transactions ADD COLUMN {column_name} {column_type}")
+        
+        # Verifica se a tabela google_calendar_auth existe
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='google_calendar_auth'")
+        if not cursor.fetchone():
+            print("Criando tabela google_calendar_auth")
+            cursor.execute("""
+                CREATE TABLE google_calendar_auth (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    access_token VARCHAR(255),
+                    refresh_token VARCHAR(255),
+                    token_expiry VARCHAR(50),
+                    calendar_id VARCHAR(255),
+                    sync_enabled BOOLEAN DEFAULT 1,
+                    FOREIGN KEY (user_id) REFERENCES users (id)
+                )
+            """)
+        
+        # Commit das alterações
+        conn.commit()
+        conn.close()
+        print("Verificação e atualização do esquema do banco de dados concluída com sucesso")
+    except Exception as e:
+        print(f"Erro ao verificar/atualizar esquema do banco de dados: {str(e)}")
+
 # Inicialização do banco de dados e criação das categorias padrão
 with app.app_context():
+    # Verifica e atualiza o esquema do banco de dados
+    update_database_schema()
+    
+    # Inicializa o banco de dados
     init_db()
     
     # Verifica se já existem categorias padrão
