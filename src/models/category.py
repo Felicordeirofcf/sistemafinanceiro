@@ -15,6 +15,7 @@ class Category(Base):
 
     # Relacionamentos
     user = relationship("User", backref="categories")
+    transacoes = relationship("Transaction", back_populates="categoria")
 
     def __repr__(self):
         return f'<Category {self.nome}>'
