@@ -12,98 +12,7 @@ sys.path.insert(0, parent_dir)
 
 # Função para verificar e atualizar o esquema do banco de dados
 # Esta função deve ser executada ANTES de qualquer importação de modelos
-def update_database_schema():
-    """Verifica e atualiza o esquema do banco de dados se necessário"""
-    # Obtém o caminho do banco de dados SQLite
-    db_path = os.getenv('DATABASE_URL', 'sqlite:///finance.db').replace('sqlite:///', '')
-    
-    # Se for uma URL de banco de dados PostgreSQL ou outro, não faz nada
-    if not db_path.endswith('.db'):
-        print("Banco de dados não é SQLite, pulando verificação de esquema")
-        return
-    
-    # Verifica se o arquivo existe
-    if not os.path.exists(db_path):
-        print(f"Banco de dados {db_path} não encontrado, será criado automaticamente")
-        return
-    
-    try:
-        # Conecta ao banco de dados
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        # Verifica s        cursor = conn.cursor()
 
-        # --- Check users table ---
-        try:
-            cursor.execute("PRAGMA table_info(users)")
-            user_columns = [column[1] for column in cursor.fetchall()]
-            if 'password_hash' not in user_columns:
-                print("Adicionando coluna password_hash à tabela users")
-                # Adiciona com DEFAULT para satisfazer NOT NULL constraint
-                cursor.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(256) NOT NULL DEFAULT 'needs_update'")
-                print("Coluna password_hash adicionada com valor padrão 'needs_update'.")
-        except sqlite3.OperationalError as e:
-            # Ignora erro se a tabela 'users' ainda não existe (será criada por init_db)
-            if "no such table: users" not in str(e):
-                print(f"Erro ao verificar/adicionar coluna password_hash: {e}")
-                # Decide se quer parar ou continuar. Por enquanto, vamos logar e continuar.
-
-        # Verifica se a coluna gcal_event_id existe na tabela transactions
-        cursor.execute("PRAGMA table_info(transactions)")
-        transaction_columns = [column[1] for column in cursor.fetchall()] # Renamed original 'columns'
-
-        # Adiciona as colunas que faltam na tabela transactions
-        missing_transaction_columns = [] # Renamed variable for clarity
-
-        # Verifica gcal_event_id
-        if 'gcal_event_id' not in transaction_columns: # Use renamed variable
-            missing_transaction_columns.append(("gcal_event_id", "VARCHAR(255)"))
-
-        # Verifica campos de recorrência
-        if 'is_recurring' not in transaction_columns: # Use renamed variable
-            missing_transaction_columns.append(("is_recurring", "BOOLEAN DEFAULT 0"))
-
-        if 'recurrence_frequency' not in transaction_columns: # Use renamed variable
-            missing_transaction_columns.append(("recurrence_frequency", "VARCHAR(50)"))
-
-        if 'recurrence_start_date' not in transaction_columns: # Use renamed variable
-            missing_transaction_columns.append(("recurrence_start_date", "VARCHAR(10)"))
-
-        if 'recurrence_end_date' not in transaction_columns: # Use renamed variable
-            missing_transaction_columns.append(("recurrence_end_date", "VARCHAR(10)"))
-
-        if 'parent_transaction_id' not in transaction_columns: # Use renamed variable
-            missing_transaction_columns.append(("parent_transaction_id", "INTEGER"))
-
-        # Adiciona as colunas que faltam na tabela transactions
-        for column_name, column_type in missing_transaction_columns: # Use renamed variable
-            print(f"Adicionando coluna {column_name} à tabela transactions")
-            cursor.execute(f"ALTER TABLE transactions ADD COLUMN {column_name} {column_type}")
-        
-        # Verifica se a tabela google_calendar_auth existe
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='google_calendar_auth'")
-        if not cursor.fetchone():
-            print("Criando tabela google_calendar_auth")
-            cursor.execute("""
-                CREATE TABLE google_calendar_auth (
-                    id INTEGER PRIMARY KEY,
-                    user_id INTEGER NOT NULL,
-                    access_token VARCHAR(255),
-                    refresh_token VARCHAR(255),
-                    token_expiry VARCHAR(50),
-                    calendar_id VARCHAR(255),
-                    sync_enabled BOOLEAN DEFAULT 1,
-                    FOREIGN KEY (user_id) REFERENCES users (id)
-                )
-            """)
-        
-        # Commit das alterações
-        conn.commit()
-        conn.close()
-        print("Verificação e atualização do esquema do banco de dados concluída com sucesso")
-    except Exception as e:
-        print(f"Erro ao verificar/atualizar esquema do banco de dados: {str(e)}")
 
 # Executa a migração do banco ANTES de importar os modelos
 # Isso garante que as colunas existam antes de qualquer consulta ORM
@@ -175,7 +84,9 @@ def shutdown_session(exception=None):
 # Inicialização do banco de dados e criação das categorias padrão
 with app.app_context():
     # Inicializa o banco de dados
-    init_db()
+    # init_db()
+    Base.metadata.create_all(bind=engine)
+    print("Tabelas criadas ou já existentes no banco de dados.")
     
     # Verifica se já existem categorias padrão
     if Category.query.count() == 0:
