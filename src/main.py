@@ -84,8 +84,7 @@ def shutdown_session(exception=None):
 # Inicialização do banco de dados e criação das categorias padrão
 with app.app_context():
     # Inicializa o banco de dados
-    # init_db()
-    Base.metadata.create_all(bind=engine)
+    init_db()
     print("Tabelas criadas ou já existentes no banco de dados.")
     
     # Verifica se já existem categorias padrão
