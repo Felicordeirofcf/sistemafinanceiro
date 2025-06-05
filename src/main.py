@@ -16,7 +16,7 @@ sys.path.insert(0, parent_dir)
 
 # Executa a migração do banco ANTES de importar os modelos
 # Isso garante que as colunas existam antes de qualquer consulta ORM
-update_database_schema()
+
 
 # Importação dos modelos e sessão do banco de dados
 try:
