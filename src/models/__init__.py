@@ -9,7 +9,12 @@ src_dir = os.path.dirname(os.path.abspath(__file__))
 src_dir = os.path.dirname(src_dir) # Sobe um nível para /src
 db_name = 'finance.db'
 db_path = os.path.join(src_dir, db_name)
+
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# Adiciona uma verificação explícita para DATABASE_URL
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is not set. Please configure it in Railway.")
 
 print(f"Usando DATABASE_URL: {DATABASE_URL}") # Log para depuração
 

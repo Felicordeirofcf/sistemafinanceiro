@@ -48,35 +48,24 @@ except ImportError:
 
 # Criação da aplicação Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'chave-secreta-temporaria')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///finance.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Configuração do Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'auth.login'
-login_manager.login_message = 'Por favor, faça login para acessar esta página.'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db_session.query(User).get(int(user_id))
 
 # Registro dos blueprints
-app.register_blueprint(auth_bp)
-app.register_blueprint(transactions_bp)
-app.register_blueprint(dashboard_bp)
-app.register_blueprint(alerts_bp)
-app.register_blueprint(gcal_bp)  # Novo blueprint para Google Calendar
+app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(transactions_bp, url_prefix='/transactions')
+app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
+app.register_blueprint(alerts_bp, url_prefix='/alerts')
+app.register_blueprint(gcal_bp, url_prefix='/gcal')
 
-# Rota principal - redireciona para o dashboard
-@app.route('/')
-def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard.index'))
-    return redirect(url_for('auth.login'))
-
-# Encerramento da sessão do banco de dados ao finalizar a requisição
+# Configuração do tratamento de requisições
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
@@ -89,38 +78,27 @@ with app.app_context():
     
     # Verifica se já existem categorias padrão
     if Category.query.count() == 0:
-        # Categorias padrão para despesas
-        despesas = [
-            {'nome': 'Alimentação', 'tipo': 'despesa', 'cor': '#e74c3c', 'icone': 'fa-utensils'},
-            {'nome': 'Transporte', 'tipo': 'despesa', 'cor': '#3498db', 'icone': 'fa-car'},
-            {'nome': 'Moradia', 'tipo': 'despesa', 'cor': '#9b59b6', 'icone': 'fa-home'},
-            {'nome': 'Lazer', 'tipo': 'despesa', 'cor': '#f39c12', 'icone': 'fa-gamepad'},
-            {'nome': 'Saúde', 'tipo': 'despesa', 'cor': '#2ecc71', 'icone': 'fa-medkit'},
-            {'nome': 'Educação', 'tipo': 'despesa', 'cor': '#1abc9c', 'icone': 'fa-book'},
-            {'nome': 'Outros', 'tipo': 'despesa', 'cor': '#95a5a6', 'icone': 'fa-tag'}
+        print("Criando categorias padrão...")
+        default_categories = [
+            Category(name='Alimentação', type='expense'),
+            Category(name='Transporte', type='expense'),
+            Category(name='Salário', type='income'),
+            Category(name='Lazer', type='expense'),
+            Category(name='Educação', type='expense'),
+            Category(name='Saúde', type='expense'),
+            Category(name='Moradia', type='expense'),
+            Category(name='Investimento', type='income'),
+            Category(name='Outros', type='expense')
         ]
-        
-        # Categorias padrão para receitas
-        receitas = [
-            {'nome': 'Salário', 'tipo': 'receita', 'cor': '#2ecc71', 'icone': 'fa-money-bill'},
-            {'nome': 'Freelance', 'tipo': 'receita', 'cor': '#3498db', 'icone': 'fa-laptop'},
-            {'nome': 'Investimentos', 'tipo': 'receita', 'cor': '#f39c12', 'icone': 'fa-chart-line'},
-            {'nome': 'Outros', 'tipo': 'receita', 'cor': '#95a5a6', 'icone': 'fa-tag'}
-        ]
-        
-        # Adiciona categorias padrão ao banco de dados
-        for cat in despesas + receitas:
-            category = Category(
-                user_id=1,  # ID temporário, será atualizado quando o usuário se registrar
-                nome=cat['nome'],
-                tipo=cat['tipo'],
-                cor=cat['cor'],
-                icone=cat['icone']
-            )
-            db_session.add(category)
-        
+        db_session.add_all(default_categories)
         db_session.commit()
+        print("Categorias padrão criadas com sucesso.")
 
-# Execução da aplicação
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.dashboard'))
+    return redirect(url_for('auth.login'))
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(debug=True, host='0.0.0.0', port=os.getenv('PORT', 5000))
