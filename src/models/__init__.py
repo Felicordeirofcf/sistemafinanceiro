@@ -12,7 +12,7 @@ src_dir = os.path.dirname(src_dir) # Sobe um nível para /src
 db_name = 'finance.db'
 db_path = os.path.join(src_dir, db_name)
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+from src.config import DATABASE_URL
 
 print(f"DEBUG: DATABASE_URL obtida: {DATABASE_URL}")
 

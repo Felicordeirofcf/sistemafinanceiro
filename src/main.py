@@ -52,8 +52,7 @@ print("DEBUG: Modelos e rotas importados.")
 
 # Criação da aplicação Flask
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "chave-secreta-temporaria")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///finance.db")
+from src.config import SECRET_KEY, DATABASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 print("DEBUG: Configurações do Flask aplicadas.")
@@ -108,3 +107,10 @@ print("DEBUG: Preparando para executar a aplicação.")
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
 print("DEBUG: Aplicação encerrada.")
+
+app.config["SECRET_KEY"] = SECRET_KEY
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
+app.config["GOOGLE_CLIENT_ID"] = GOOGLE_CLIENT_ID
+app.config["GOOGLE_CLIENT_SECRET"] = GOOGLE_CLIENT_SECRET
+app.config["GOOGLE_REDIRECT_URI"] = GOOGLE_REDIRECT_URI
+
