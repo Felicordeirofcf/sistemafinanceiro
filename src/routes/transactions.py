@@ -16,30 +16,30 @@ except ImportError:
     from models.google_calendar_auth import GoogleCalendarAuth
     from routes.gcal import sync_transaction
 
-transactions_bp = Blueprint('transactions', __name__, url_prefix='/transactions')
+transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
 
-@transactions_bp.route('/add', methods=['POST'])
+@transactions_bp.route("/add", methods=["POST"])
 @login_required
 def add():
     """Adiciona uma nova transação"""
-    if request.method == 'POST':
-        descricao = request.form.get('descricao')
-        valor_str = request.form.get('valor', '0').replace('.', '').replace(',', '')
+    if request.method == "POST":
+        descricao = request.form.get("descricao")
+        valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
         valor = int(valor_str) if valor_str.isdigit() else 0
-        tipo = request.form.get('tipo')
-        data = request.form.get('data')
-        vencimento = request.form.get('vencimento') if tipo == 'despesa' else None
-        categoria_id = request.form.get('categoria_id')
-        observacoes = request.form.get('observacoes', '')
+        tipo = request.form.get("tipo")
+        data = request.form.get("data")
+        vencimento = request.form.get("vencimento") if tipo == "despesa" else None
+        categoria_id = request.form.get("categoria_id")
+        observacoes = request.form.get("observacoes", "")
         
         # Campos de recorrência
-        is_recurring = request.form.get('is_recurring') == 'on'
-        recurrence_frequency = request.form.get('recurrence_frequency')
-        recurrence_end_date = request.form.get('recurrence_end_date')
+        is_recurring = request.form.get("is_recurring") == "on"
+        recurrence_frequency = request.form.get("recurrence_frequency")
+        recurrence_end_date = request.form.get("recurrence_end_date")
         
         if not descricao or not valor or not tipo or not data:
-            flash('Todos os campos obrigatórios devem ser preenchidos.', 'danger')
-            return redirect(url_for('dashboard.index'))
+            flash("Todos os campos obrigatórios devem ser preenchidos.", "danger")
+            return redirect(url_for("dashboard.index"))
         
         # Cria a transação principal
         transaction = Transaction(
@@ -49,7 +49,7 @@ def add():
             tipo=tipo,
             data=data,
             vencimento=vencimento,
-            pago=False if tipo == 'despesa' else True,
+            pago=False if tipo == "despesa" else True,
             categoria_id=categoria_id if categoria_id else None,
             observacoes=observacoes,
             is_recurring=is_recurring,
@@ -62,49 +62,49 @@ def add():
         db_session.commit()
         
         # Se for uma despesa recorrente, gera as próximas ocorrências
-        if is_recurring and tipo == 'despesa':
+        if is_recurring and tipo == "despesa":
             generate_recurring_transactions(transaction)
         
         # Verifica se o usuário tem integração com Google Calendar ativa
         auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id, sync_enabled=1).first()
-        if auth and tipo == 'despesa':
+        if auth and tipo == "despesa":
             # Sincroniza a transação com o Google Calendar
-            return redirect(url_for('gcal.sync_transaction', transaction_id=transaction.id))
+            return redirect(url_for("gcal.sync_transaction", transaction_id=transaction.id))
         
-        flash('Transação adicionada com sucesso!', 'success')
-        return redirect(url_for('dashboard.index'))
+        flash("Transação adicionada com sucesso!", "success")
+        return redirect(url_for("dashboard.index"))
 
-@transactions_bp.route('/edit/<int:id>', methods=['POST'])
+@transactions_bp.route("/edit/<int:id>", methods=["POST"])
 @login_required
 def edit(id):
     """Edita uma transação existente"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
     
     if not transaction:
-        flash('Transação não encontrada.', 'danger')
-        return redirect(url_for('dashboard.index'))
+        flash("Transação não encontrada.", "danger")
+        return redirect(url_for("dashboard.index"))
     
-    if request.method == 'POST':
-        descricao = request.form.get('descricao')
-        valor_str = request.form.get('valor', '0').replace('.', '').replace(',', '')
+    if request.method == "POST":
+        descricao = request.form.get("descricao")
+        valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
         valor = int(valor_str) if valor_str.isdigit() else 0
-        tipo = request.form.get('tipo')
-        data = request.form.get('data')
-        vencimento = request.form.get('vencimento') if tipo == 'despesa' else None
-        categoria_id = request.form.get('categoria_id')
-        observacoes = request.form.get('observacoes', '')
+        tipo = request.form.get("tipo")
+        data = request.form.get("data")
+        vencimento = request.form.get("vencimento") if tipo == "despesa" else None
+        categoria_id = request.form.get("categoria_id")
+        observacoes = request.form.get("observacoes", "")
         
         # Campos de recorrência
-        is_recurring = request.form.get('is_recurring') == 'on'
-        recurrence_frequency = request.form.get('recurrence_frequency')
-        recurrence_end_date = request.form.get('recurrence_end_date')
+        is_recurring = request.form.get("is_recurring") == "on"
+        recurrence_frequency = request.form.get("recurrence_frequency")
+        recurrence_end_date = request.form.get("recurrence_end_date")
         
         # Verifica se deve atualizar todas as ocorrências futuras
-        update_all_future = request.form.get('update_all_future') == 'on'
+        update_all_future = request.form.get("update_all_future") == "on"
         
         if not descricao or not valor or not tipo or not data:
-            flash('Todos os campos obrigatórios devem ser preenchidos.', 'danger')
-            return redirect(url_for('dashboard.index'))
+            flash("Todos os campos obrigatórios devem ser preenchidos.", "danger")
+            return redirect(url_for("dashboard.index"))
         
         # Se for uma transação recorrente e o usuário quer atualizar todas as ocorrências futuras
         if (transaction.is_recurring or transaction.parent_transaction_id) and update_all_future:
@@ -124,7 +124,7 @@ def edit(id):
                 parent.recurrence_end_date = recurrence_end_date if is_recurring and recurrence_end_date else None
                 
                 # Atualiza todas as ocorrências futuras
-                today = datetime.now().strftime('%Y-%m-%d')
+                today = datetime.now().strftime("%Y-%m-%d")
                 future_transactions = Transaction.query.filter(
                     Transaction.parent_transaction_id == parent_id,
                     Transaction.data >= today
@@ -138,9 +138,9 @@ def edit(id):
                     future.observacoes = observacoes
                 
                 db_session.commit()
-                flash('Todas as ocorrências futuras foram atualizadas com sucesso!', 'success')
+                flash("Todas as ocorrências futuras foram atualizadas com sucesso!", "success")
             else:
-                flash('Transação pai não encontrada.', 'danger')
+                flash("Transação pai não encontrada.", "danger")
         else:
             # Atualiza apenas a transação atual
             transaction.descricao = descricao
@@ -158,34 +158,34 @@ def edit(id):
             db_session.commit()
             
             # Se for uma despesa recorrente e não tinha recorrência antes, gera as próximas ocorrências
-            if is_recurring and tipo == 'despesa' and not transaction.child_transactions:
+            if is_recurring and tipo == "despesa" and not transaction.child_transactions:
                 generate_recurring_transactions(transaction)
             
-            flash('Transação atualizada com sucesso!', 'success')
+            flash("Transação atualizada com sucesso!", "success")
         
         # Verifica se o usuário tem integração com Google Calendar ativa
         auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id, sync_enabled=1).first()
-        if auth and tipo == 'despesa':
+        if auth and tipo == "despesa":
             # Sincroniza a transação com o Google Calendar
-            return redirect(url_for('gcal.sync_transaction', transaction_id=transaction.id))
+            return redirect(url_for("gcal.sync_transaction", transaction_id=transaction.id))
         
-        return redirect(url_for('dashboard.index'))
+        return redirect(url_for("dashboard.index"))
 
-@transactions_bp.route('/delete/<int:id>')
+@transactions_bp.route("/delete/<int:id>")
 @login_required
 def delete(id):
     """Exclui uma transação"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
     
     if not transaction:
-        flash('Transação não encontrada.', 'danger')
-        return redirect(url_for('dashboard.index'))
+        flash("Transação não encontrada.", "danger")
+        return redirect(url_for("dashboard.index"))
     
     # Verifica se é uma transação recorrente
     is_recurring = transaction.is_recurring or transaction.parent_transaction_id
     
     # Pergunta se deve excluir todas as ocorrências futuras
-    delete_all_future = request.args.get('delete_all_future') == 'true'
+    delete_all_future = request.args.get("delete_all_future") == "true"
     
     # Se for uma transação recorrente e o usuário quer excluir todas as ocorrências futuras
     if is_recurring and delete_all_future:
@@ -193,7 +193,7 @@ def delete(id):
         parent_id = transaction.parent_transaction_id if transaction.parent_transaction_id else transaction.id
         
         # Exclui todas as ocorrências futuras
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         future_transactions = Transaction.query.filter(
             Transaction.parent_transaction_id == parent_id,
             Transaction.data >= today
@@ -210,25 +210,25 @@ def delete(id):
             db_session.delete(transaction)
         
         db_session.commit()
-        flash('Todas as ocorrências futuras foram excluídas com sucesso!', 'success')
+        flash("Todas as ocorrências futuras foram excluídas com sucesso!", "success")
     else:
         # Exclui apenas a transação atual
         delete_gcal_event(transaction)
         db_session.delete(transaction)
         db_session.commit()
-        flash('Transação excluída com sucesso!', 'success')
+        flash("Transação excluída com sucesso!", "success")
     
-    return redirect(url_for('dashboard.index'))
+    return redirect(url_for("dashboard.index"))
 
-@transactions_bp.route('/toggle_status/<int:id>')
+@transactions_bp.route("/toggle_status/<int:id>")
 @login_required
 def toggle_status(id):
     """Alterna o status de pagamento de uma transação"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
     
     if not transaction:
-        flash('Transação não encontrada.', 'danger')
-        return redirect(url_for('dashboard.index'))
+        flash("Transação não encontrada.", "danger")
+        return redirect(url_for("dashboard.index"))
     
     # Inverte o status de pagamento
     transaction.pago = not transaction.pago
@@ -236,15 +236,15 @@ def toggle_status(id):
     
     # Verifica se o usuário tem integração com Google Calendar ativa
     auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id, sync_enabled=1).first()
-    if auth and transaction.tipo == 'despesa':
+    if auth and transaction.tipo == "despesa":
         # Sincroniza a transação com o Google Calendar
-        return redirect(url_for('gcal.sync_transaction', transaction_id=transaction.id))
+        return redirect(url_for("gcal.sync_transaction", transaction_id=transaction.id))
     
     status = "paga" if transaction.pago else "pendente"
-    flash(f'Transação marcada como {status}.', 'success')
-    return redirect(url_for('dashboard.index'))
+    flash(f"Transação marcada como {status}.", "success")
+    return redirect(url_for("dashboard.index"))
 
-@transactions_bp.route('/recurring')
+@transactions_bp.route("/recurring")
 @login_required
 def recurring():
     """Exibe todas as despesas recorrentes"""
@@ -259,12 +259,33 @@ def recurring():
     categories = Category.query.filter_by(user_id=current_user.id).all()
     
     return render_template(
-        'dashboard/recurring.html',
+        "dashboard/recurring.html",
         transactions=recurring_transactions,
         categories=categories
     )
+@transactions_bp.route("/search", methods=["GET"])
+@login_required
+def search_transactions():
+    """Busca transações com base em parâmetros"""
+    termo = request.args.get("q", "")
+    
+    # Exemplo simples de busca por descrição
+    transacoes = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.descricao.ilike(f"%{termo}%")
+    ).all()
+    
+    categories = Category.query.filter_by(user_id=current_user.id).all()
 
-@transactions_bp.route('/generate_recurring')
+    return render_template(
+        "dashboard/search_results.html",
+        transactions=transacoes,
+        categories=categories,
+        termo=termo
+    )
+
+
+@transactions_bp.route("/generate_recurring")
 @login_required
 def generate_recurring():
     """Gera as próximas ocorrências de todas as despesas recorrentes"""
@@ -279,29 +300,29 @@ def generate_recurring():
     for transaction in recurring_transactions:
         count += generate_recurring_transactions(transaction)
     
-    flash(f'{count} novas ocorrências de despesas recorrentes foram geradas.', 'success')
-    return redirect(url_for('transactions.recurring'))
+    flash(f"{count} novas ocorrências de despesas recorrentes foram geradas.", "success")
+    return redirect(url_for("transactions.recurring"))
 
 def generate_recurring_transactions(transaction, limit=12):
     """Gera as próximas ocorrências de uma despesa recorrente"""
-    if not transaction.is_recurring or transaction.tipo != 'despesa':
+    if not transaction.is_recurring or transaction.tipo != "despesa":
         return 0
     
     # Determina a data de início
-    start_date = datetime.strptime(transaction.recurrence_start_date or transaction.data, '%Y-%m-%d')
+    start_date = datetime.strptime(transaction.recurrence_start_date or transaction.data, "%Y-%m-%d")
     
     # Determina a data de término (se houver)
     end_date = None
     if transaction.recurrence_end_date:
-        end_date = datetime.strptime(transaction.recurrence_end_date, '%Y-%m-%d')
+        end_date = datetime.strptime(transaction.recurrence_end_date, "%Y-%m-%d")
     
     # Determina a frequência em meses
     frequency_months = {
-        'mensal': 1,
-        'bimestral': 2,
-        'trimestral': 3,
-        'semestral': 6,
-        'anual': 12
+        "mensal": 1,
+        "bimestral": 2,
+        "trimestral": 3,
+        "semestral": 6,
+        "anual": 12
     }.get(transaction.recurrence_frequency, 1)
     
     # Busca as ocorrências já existentes
@@ -323,7 +344,7 @@ def generate_recurring_transactions(transaction, limit=12):
             break
         
         # Formata a data para string
-        date_str = current_date.strftime('%Y-%m-%d')
+        date_str = current_date.strftime("%Y-%m-%d")
         
         # Verifica se já existe uma ocorrência nesta data
         if date_str in existing_dates:
@@ -352,7 +373,7 @@ def generate_recurring_transactions(transaction, limit=12):
 def delete_gcal_event(transaction):
     """Exclui o evento do Google Calendar associado a uma transação"""
     # Verifica se há um evento do Google Calendar associado
-    event_id = getattr(transaction, 'gcal_event_id', None)
+    event_id = getattr(transaction, "gcal_event_id", None)
     auth = GoogleCalendarAuth.query.filter_by(user_id=transaction.user_id, sync_enabled=1).first()
     
     # Se houver evento associado e integração ativa, exclui o evento
@@ -364,30 +385,14 @@ def delete_gcal_event(transaction):
             import os
             
             # Caminho para o arquivo de credenciais
-            CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'client_secret.json')
+            CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "client_secret.json")
             
             # Cria as credenciais
             credentials = Credentials(
                 token=auth.access_token,
                 refresh_token=auth.refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
-                client_id=json.load(open(CLIENT_SECRETS_FILE))['web']['client_id'],
-                client_secret=json.load(open(CLIENT_SECRETS_FILE))['web']['client_secret'],
-                scopes=['https://www.googleapis.com/auth/calendar']
-            )
-            
-            # Cria o serviço do Calendar
-            calendar_service = build('calendar', 'v3', credentials=credentials)
-            
-            # Exclui o evento
-            calendar_service.events().delete(
-                calendarId=auth.calendar_id,
-                eventId=event_id
-            ).execute()
-            
-            return True
-        except Exception as e:
-            # Apenas registra o erro, mas não impede a exclusão da transação
-            print(f"Erro ao excluir evento do Google Calendar: {str(e)}")
-    
-    return False
+                client_id=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_id"],
+                client_secret=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_secret"],
+                scopes=["https://www.googleapis.com/auth/calendar"]
+

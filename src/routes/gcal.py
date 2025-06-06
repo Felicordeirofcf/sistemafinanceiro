@@ -42,7 +42,8 @@ if not os.path.exists(CLIENT_SECRETS_FILE):
 def index():
     """Página principal de configuração do Google Calendar"""
     # Verifica se o usuário já está autenticado
-    auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
+    if not auth:
+        return redirect(url_for("gcal.authorize"))
     
     return render_template(
         'gcal/index.html',
