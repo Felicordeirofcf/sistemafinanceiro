@@ -11,8 +11,8 @@ class Transaction(Base):
     descricao = Column(String(255), nullable=False)
     valor = Column(Integer, nullable=False)  # Valor em centavos
     tipo = Column(String(50), nullable=False)  # 'receita' ou 'despesa'
-    data = Column(String(10), nullable=False)  # Formato: YYYY-MM-DD
-    vencimento = Column(String(10), nullable=True)  # Formato: YYYY-MM-DD (apenas para despesas)
+    data = Column(Date, nullable=False)  # Alterado para tipo Date
+    vencimento = Column(Date, nullable=True)  # Alterado para tipo Date
     pago = Column(Boolean, default=False)
     categoria_id = Column(Integer, ForeignKey('categories.id'), nullable=True)
     gcal_event_id = Column(String(255), nullable=True)  # ID do evento no Google Calendar
@@ -21,8 +21,8 @@ class Transaction(Base):
     # Campos para despesas recorrentes
     is_recurring = Column(Boolean, default=False)  # Indica se é uma despesa recorrente
     recurrence_frequency = Column(String(50), nullable=True)  # mensal, trimestral, semestral, anual
-    recurrence_start_date = Column(String(10), nullable=True)  # Data de início da recorrência
-    recurrence_end_date = Column(String(10), nullable=True)  # Data de término da recorrência (opcional)
+    recurrence_start_date = Column(Date, nullable=True)  # Alterado para tipo Date
+    recurrence_end_date = Column(Date, nullable=True)  # Alterado para tipo Date (opcional)
     parent_transaction_id = Column(Integer, ForeignKey('transactions.id'), nullable=True)  # ID da transação original
     
     # Relacionamentos
