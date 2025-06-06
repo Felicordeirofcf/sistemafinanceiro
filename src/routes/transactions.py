@@ -388,11 +388,14 @@ def delete_gcal_event(transaction):
             CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "client_secret.json")
             
             # Cria as credenciais
-            credentials = Credentials(
-                token=auth.access_token,
-                refresh_token=auth.refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_id"],
-                client_secret=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_secret"],
-                scopes=["https://www.googleapis.com/auth/calendar"]
+            # Cria as credenciais
+credentials = Credentials(
+    token=auth.access_token,
+    refresh_token=auth.refresh_token,
+    token_uri="https://oauth2.googleapis.com/token",
+    client_id=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_id"],
+    client_secret=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_secret"],
+    scopes=["https://www.googleapis.com/auth/calendar"]
+)
+
 
