@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
-from sqlalchemy import extract, distinct, or_
+from sqlalchemy import extract, distinct, or_, text
 
 try:
     from src.models import db_session
@@ -12,16 +12,16 @@ except ImportError:
     from models.transaction import Transaction
     from models.category import Category
 
-dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
+dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
-@dashboard_bp.route('/')
+@dashboard_bp.route("/")
 @login_required
 def index():
     """Rota principal do dashboard"""
     # Obtém o mês e ano atuais ou os selecionados via parâmetros
     now = datetime.now()
-    selected_month = int(request.args.get('mes', now.month))
-    selected_year = int(request.args.get('ano', now.year))
+    selected_month = int(request.args.get("mes", now.month))
+    selected_year = int(request.args.get("ano", now.year))
     
     # Obtém as transações do mês selecionado
     start_date = f"{selected_year}-{selected_month:02d}-01"
@@ -40,19 +40,19 @@ def index():
     ).order_by(Transaction.data).all()
     
     # Calcula os totais
-    total_receitas = sum(t.valor for t in transactions if t.tipo == 'receita')
-    total_despesas = sum(t.valor for t in transactions if t.tipo == 'despesa')
-    total_despesas_pagas = sum(t.valor for t in transactions if t.tipo == 'despesa' and t.pago)
+    total_receitas = sum(t.valor for t in transactions if t.tipo == "receita")
+    total_despesas = sum(t.valor for t in transactions if t.tipo == "despesa")
+    total_despesas_pagas = sum(t.valor for t in transactions if t.tipo == "despesa" and t.pago)
     total_despesas_pendentes = total_despesas - total_despesas_pagas
     saldo_mes = total_receitas - total_despesas_pagas
     
     # Obtém os anos disponíveis para o filtro - CORRIGIDO para SQLAlchemy 2.0+
     # Consulta direta para extrair anos distintos das datas de transações
-    years_data = db_session.query(
-        extract('year', Transaction.data)
-    ).filter(
-        Transaction.user_id == current_user.id
-    ).distinct().all()
+    query = text("""
+        SELECT DISTINCT EXTRACT(YEAR FROM transactions.data::date) AS year
+        FROM transactions
+    """)
+    years_data = db_session.execute(query).fetchall()
     
     available_years = set(year[0] for year in years_data if year[0])
     
@@ -63,8 +63,8 @@ def index():
     
     # Obtém o nome do mês
     month_names = [
-        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
     ]
     month_name = month_names[selected_month - 1] if 1 <= selected_month <= 12 else "Inválido"
     
@@ -78,7 +78,7 @@ def index():
     for transaction in transactions:
         category_name = transaction.categoria.nome if transaction.categoria else "Sem categoria"
         
-        if transaction.tipo == 'despesa':
+        if transaction.tipo == "despesa":
             if category_name in expense_by_category:
                 expense_by_category[category_name] += transaction.valor
             else:
@@ -93,24 +93,24 @@ def index():
     calendar_data = []
     for transaction in transactions:
         # Determina a cor e ícone com base no tipo e status
-        color = transaction.categoria.cor if transaction.categoria else '#3498db'
-        icon = transaction.categoria.icone if transaction.categoria else 'fa-tag'
+        color = transaction.categoria.cor if transaction.categoria else "#3498db"
+        icon = transaction.categoria.icone if transaction.categoria else "fa-tag"
         
         # Adiciona indicador visual para despesas recorrentes
         title_prefix = "🔄 " if transaction.is_recurring or transaction.parent_transaction_id else ""
         
         calendar_data.append({
-            'id': transaction.id,
-            'title': title_prefix + transaction.descricao,
-            'start': transaction.data,
-            'color': color,
-            'extendedProps': {
-                'tipo': transaction.tipo,
-                'valor': transaction.valor,
-                'categoria': transaction.categoria.nome if transaction.categoria else "Sem categoria",
-                'pago': transaction.pago,
-                'icon': icon,
-                'is_recurring': transaction.is_recurring or transaction.parent_transaction_id is not None
+            "id": transaction.id,
+            "title": title_prefix + transaction.descricao,
+            "start": transaction.data,
+            "color": color,
+            "extendedProps": {
+                "tipo": transaction.tipo,
+                "valor": transaction.valor,
+                "categoria": transaction.categoria.nome if transaction.categoria else "Sem categoria",
+                "pago": transaction.pago,
+                "icon": icon,
+                "is_recurring": transaction.is_recurring or transaction.parent_transaction_id is not None
             }
         })
     
@@ -120,7 +120,7 @@ def index():
     
     upcoming_due = Transaction.query.filter(
         Transaction.user_id == current_user.id,
-        Transaction.tipo == 'despesa',
+        Transaction.tipo == "despesa",
         Transaction.pago == False,
         Transaction.vencimento >= today,
         Transaction.vencimento <= next_week
@@ -134,7 +134,7 @@ def index():
     ).count()
     
     return render_template(
-        'dashboard/index.html',
+        "dashboard/index.html",
         transactions=transactions,
         total_receitas=total_receitas,
         total_despesas=total_despesas,
@@ -155,14 +155,14 @@ def index():
         recurring_count=recurring_count
     )
 
-@dashboard_bp.route('/chart-data')
+@dashboard_bp.route("/chart-data")
 @login_required
 def chart_data():
     """Retorna dados para os gráficos em formato JSON"""
     # Obtém o mês e ano atuais ou os selecionados via parâmetros
     now = datetime.now()
-    selected_month = int(request.args.get('mes', now.month))
-    selected_year = int(request.args.get('ano', now.year))
+    selected_month = int(request.args.get("mes", now.month))
+    selected_year = int(request.args.get("ano", now.year))
     
     # Obtém as transações do mês selecionado
     start_date = f"{selected_year}-{selected_month:02d}-01"
@@ -187,7 +187,7 @@ def chart_data():
     for transaction in transactions:
         category_name = transaction.categoria.nome if transaction.categoria else "Sem categoria"
         
-        if transaction.tipo == 'despesa':
+        if transaction.tipo == "despesa":
             if category_name in expense_by_category:
                 expense_by_category[category_name] += transaction.valor
             else:
@@ -201,83 +201,83 @@ def chart_data():
     # Formata os dados para o gráfico de pizza
     expense_chart_data = [
         {
-            'name': category,
-            'value': value,
-            'color': next((c.cor for c in Category.query.filter_by(
+            "name": category,
+            "value": value,
+            "color": next((c.cor for c in Category.query.filter_by(
                 user_id=current_user.id, nome=category
-            ).all()), '#3498db')
+            ).all()), "#3498db")
         }
         for category, value in expense_by_category.items()
     ]
     
     income_chart_data = [
         {
-            'name': category,
-            'value': value,
-            'color': next((c.cor for c in Category.query.filter_by(
+            "name": category,
+            "value": value,
+            "color": next((c.cor for c in Category.query.filter_by(
                 user_id=current_user.id, nome=category
-            ).all()), '#2ecc71')
+            ).all()), "#2ecc71")
         }
         for category, value in income_by_category.items()
     ]
     
     # Dados para o gráfico de barras (receitas x despesas)
     bar_chart_data = {
-        'labels': ['Receitas', 'Despesas'],
-        'datasets': [
+        "labels": ["Receitas", "Despesas"],
+        "datasets": [
             {
-                'data': [
-                    sum(t.valor for t in transactions if t.tipo == 'receita'),
-                    sum(t.valor for t in transactions if t.tipo == 'despesa')
+                "data": [
+                    sum(t.valor for t in transactions if t.tipo == "receita"),
+                    sum(t.valor for t in transactions if t.tipo == "despesa")
                 ],
-                'backgroundColor': ['#2ecc71', '#e74c3c']
+                "backgroundColor": ["#2ecc71", "#e74c3c"]
             }
         ]
     }
     
     # Dados para o gráfico de despesas fixas vs variáveis
-    fixed_expenses = sum(t.valor for t in transactions if t.tipo == 'despesa' and (t.is_recurring or t.parent_transaction_id))
-    variable_expenses = sum(t.valor for t in transactions if t.tipo == 'despesa' and not (t.is_recurring or t.parent_transaction_id))
+    fixed_expenses = sum(t.valor for t in transactions if t.tipo == "despesa" and (t.is_recurring or t.parent_transaction_id))
+    variable_expenses = sum(t.valor for t in transactions if t.tipo == "despesa" and not (t.is_recurring or t.parent_transaction_id))
     
     fixed_vs_variable_data = {
-        'labels': ['Despesas Fixas', 'Despesas Variáveis'],
-        'datasets': [
+        "labels": ["Despesas Fixas", "Despesas Variáveis"],
+        "datasets": [
             {
-                'data': [fixed_expenses, variable_expenses],
-                'backgroundColor': ['#9b59b6', '#f39c12']
+                "data": [fixed_expenses, variable_expenses],
+                "backgroundColor": ["#9b59b6", "#f39c12"]
             }
         ]
     }
     
     return jsonify({
-        'expense_chart': expense_chart_data,
-        'income_chart': income_chart_data,
-        'bar_chart': bar_chart_data,
-        'fixed_vs_variable_chart': fixed_vs_variable_data
+        "expense_chart": expense_chart_data,
+        "income_chart": income_chart_data,
+        "bar_chart": bar_chart_data,
+        "fixed_vs_variable_chart": fixed_vs_variable_data
     })
 
-@dashboard_bp.route('/search', methods=['GET', 'POST'])
+@dashboard_bp.route("/search", methods=["GET", "POST"])
 @login_required
 def search():
     """Busca transações com filtros avançados"""
-    if request.method == 'POST':
+    if request.method == "POST":
         # Obtém os parâmetros de busca
-        termo = request.form.get('termo', '')
-        categoria_id = request.form.get('categoria_id')
-        tipo = request.form.get('tipo')
-        data_inicio = request.form.get('data_inicio')
-        data_fim = request.form.get('data_fim')
-        valor_min_str = request.form.get('valor_min', '').replace('.', '').replace(',', '')
-        valor_max_str = request.form.get('valor_max', '').replace('.', '').replace(',', '')
-        status = request.form.get('status')
-        is_recurring = request.form.get('is_recurring')
+        termo = request.form.get("termo", "")
+        categoria_id = request.form.get("categoria_id")
+        tipo = request.form.get("tipo")
+        data_inicio = request.form.get("data_inicio")
+        data_fim = request.form.get("data_fim")
+        valor_min_str = request.form.get("valor_min", "").replace(".", "").replace(",", "")
+        valor_max_str = request.form.get("valor_max", "").replace(".", "").replace(",", "")
+        status = request.form.get("status")
+        is_recurring = request.form.get("is_recurring")
         
         # Constrói a consulta base
         query = Transaction.query.filter(Transaction.user_id == current_user.id)
         
         # Aplica os filtros
         if termo:
-            query = query.filter(Transaction.descricao.ilike(f'%{termo}%'))
+            query = query.filter(Transaction.descricao.ilike(f"%{termo}%"))
         
         if categoria_id:
             query = query.filter(Transaction.categoria_id == categoria_id)
@@ -300,15 +300,15 @@ def search():
             query = query.filter(Transaction.valor <= valor_max)
         
         if status:
-            if status == 'pago':
+            if status == "pago":
                 query = query.filter(Transaction.pago == True)
-            elif status == 'pendente':
+            elif status == "pendente":
                 query = query.filter(Transaction.pago == False)
         
         if is_recurring:
-            if is_recurring == 'sim':
+            if is_recurring == "sim":
                 query = query.filter(or_(Transaction.is_recurring == True, Transaction.parent_transaction_id != None))
-            elif is_recurring == 'nao':
+            elif is_recurring == "nao":
                 query = query.filter(Transaction.is_recurring == False, Transaction.parent_transaction_id == None)
         
         # Executa a consulta
@@ -318,21 +318,23 @@ def search():
         categories = Category.query.filter_by(user_id=current_user.id).all()
         
         return render_template(
-            'dashboard/search_results.html',
+            "dashboard/search_results.html",
             transactions=transactions,
             categories=categories,
             search_params={
-                'termo': termo,
-                'categoria_id': categoria_id,
-                'tipo': tipo,
-                'data_inicio': data_inicio,
-                'data_fim': data_fim,
-                'valor_min': valor_min_str,
-                'valor_max': valor_max_str,
-                'status': status,
-                'is_recurring': is_recurring
+                "termo": termo,
+                "categoria_id": categoria_id,
+                "tipo": tipo,
+                "data_inicio": data_inicio,
+                "data_fim": data_fim,
+                "valor_min": valor_min_str,
+                "valor_max": valor_max_str,
+                "status": status,
+                "is_recurring": is_recurring
             }
         )
     
     # Se for GET, redireciona para o dashboard
-    return redirect(url_for('dashboard.index'))
+    return redirect(url_for("dashboard.index"))
+
+
