@@ -97,41 +97,11 @@ with app.app_context():
     print("DEBUG: init_db() concluído.")
     print("Tabelas criadas ou já existentes no banco de dados.")
     
-    # Verifica se já existem categorias padrão
-    if Category.query.count() == 0:
-        print("DEBUG: Criando categorias padrão...")
-        # Categorias padrão para despesas
-        despesas = [
-            {"nome": "Alimentação", "tipo": "despesa", "cor": "#e74c3c", "icone": "fa-utensils"},
-            {"nome": "Transporte", "tipo": "despesa", "cor": "#3498db", "icone": "fa-car"},
-            {"nome": "Moradia", "tipo": "despesa", "cor": "#9b59b6", "icone": "fa-home"},
-            {"nome": "Lazer", "tipo": "despesa", "cor": "#f39c12", "icone": "fa-gamepad"},
-            {"nome": "Saúde", "tipo": "despesa", "cor": "#2ecc71", "icone": "fa-medkit"},
-            {"nome": "Educação", "tipo": "despesa", "cor": "#1abc9c", "icone": "fa-book"},
-            {"nome": "Outros", "tipo": "despesa", "cor": "#95a5a6", "icone": "fa-tag"}
-        ]
-        
-        # Categorias padrão para receitas
-        receitas = [
-            {"nome": "Salário", "tipo": "receita", "cor": "#2ecc71", "icone": "fa-money-bill"},
-            {"nome": "Freelance", "tipo": "receita", "cor": "#3498db", "icone": "fa-laptop"},
-            {"nome": "Investimentos", "tipo": "receita", "cor": "#f39c12", "icone": "fa-chart-line"},
-            {"nome": "Outros", "tipo": "receita", "cor": "#95a5a6", "icone": "fa-tag"}
-        ]
-        
-        # Adiciona categorias padrão ao banco de dados
-        for cat in despesas + receitas:
-            category = Category(
-                user_id=1,  # ID temporário, será atualizado quando o usuário se registrar
-                nome=cat["nome"],
-                tipo=cat["tipo"],
-                cor=cat["cor"],
-                icone=cat["icone"]
-            )
-            db_session.add(category)
-        
-        db_session.commit()
-        print("DEBUG: Categorias padrão criadas com sucesso.")
+    # A lógica de criação de categorias padrão foi removida daqui
+    # para evitar o erro ForeignKeyViolation, pois ela dependia de um
+    # user_id fixo que pode não existir no momento da inicialização.
+    # As categorias devem ser criadas após o registro do usuário
+    # ou por um processo de seed de dados separado.
 
 print("DEBUG: Preparando para executar a aplicação.")
 # Execução da aplicação
