@@ -5,46 +5,52 @@ import os
 
 print("DEBUG: Iniciando src/models/__init__.py")
 
-# Configuração do banco de dados
-# Define o caminho absoluto para o banco de dados dentro do diretório src
-src_dir = os.path.dirname(os.path.abspath(__file__))
-src_dir = os.path.dirname(src_dir) # Sobe um nível para /src
-db_name = 'finance.db'
-db_path = os.path.join(src_dir, db_name)
-
+# Carrega DATABASE_URL do src.config
 from src.config import DATABASE_URL
 
-print(f"DEBUG: DATABASE_URL obtida: {DATABASE_URL}")
-
-# Adiciona uma verificação explícita para DATABASE_URL
+# Verificação da variável de ambiente
 if not DATABASE_URL:
-    print("ERROR: DATABASE_URL environment variable is not set.")
-    raise ValueError("DATABASE_URL environment variable is not set. Please configure it in Railway.")
+    raise ValueError("DATABASE_URL não está definida. Configure-a no Railway ou no .env.")
 
-print(f"DEBUG: Usando DATABASE_URL: {DATABASE_URL}") # Log para depuração
+print(f"DEBUG: Usando DATABASE_URL: {DATABASE_URL}")
 
+# Criação do engine com a URL do banco (PostgreSQL esperado)
 try:
-    engine = create_engine(DATABASE_URL)
-    print("DEBUG: Engine do SQLAlchemy criada com sucesso.")
+    engine = create_engine(DATABASE_URL, echo=True, future=True)
+    print(f"DEBUG: Engine do SQLAlchemy criada com sucesso.")
 except Exception as e:
-    print(f"ERROR: Erro ao criar a engine do SQLAlchemy: {e}")
+    print(f"ERROR: Falha ao criar engine: {e}")
     raise
 
+# Sessão do banco
 db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
+# Base declarativa
 Base = declarative_base()
 Base.query = db_session.query_property()
 
+# Teste de conexão para diagnóstico
+def test_connection():
+    try:
+        with engine.connect() as connection:
+            result = connection.execute("SELECT 1;")
+            print("DEBUG: Conexão com banco estabelecida com sucesso.")
+    except Exception as e:
+        print(f"ERROR: Falha ao conectar ao banco: {e}")
+        raise
+
+# Inicialização do banco e criação de tabelas
 def init_db():
-    """Inicializa o banco de dados e cria as tabelas"""
     print("DEBUG: Iniciando init_db()")
     import src.models.user
     import src.models.transaction
     import src.models.category
     try:
         Base.metadata.create_all(bind=engine)
-        print("DEBUG: Base.metadata.create_all() executado com sucesso.")
+        print("DEBUG: Tabelas criadas com sucesso.")
     except Exception as e:
-        print(f"ERROR: Erro ao criar tabelas no banco de dados: {e}")
+        print(f"ERROR: Falha na criação das tabelas: {e}")
         raise
-    print("DEBUG: init_db() concluído.")
+
+# Executa teste no momento do carregamento
+test_connection()
