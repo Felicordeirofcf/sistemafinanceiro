@@ -34,15 +34,7 @@
 
                         <h4 class="text-center mb-4">Login</h4>
 
-                        <!-- Botão de login com Google -->
-                        <div class="d-grid mb-3">
-                            <a href="{{ url_for('auth.login_google') }}" class="btn btn-danger btn-lg">
-                                <i class="fab fa-google me-2"></i> Entrar com Google
-                            </a>
-                        </div>
-
-                        <hr class="my-4">
-
+                        <!-- Formulário de Login -->
                         <form method="POST" action="{{ url_for('auth.login') }}">
                             <div class="mb-3">
                                 <label for="username" class="form-label">Nome de Usuário</label>
