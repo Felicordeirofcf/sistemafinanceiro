@@ -53,13 +53,14 @@ print("DEBUG: Modelos e rotas importados.")
 # Criação da aplicação Flask
 app = Flask(__name__)
 
-# Configurações principais com variáveis de ambiente (Railway ou .env)
+# Configurações principais com variáveis de ambiente
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
 app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
 app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Configuração do e-mail (opcional)
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
@@ -99,12 +100,12 @@ def index():
         return redirect(url_for("dashboard.index"))
     return redirect(url_for("auth.login"))
 
-# Encerramento da sessão do banco
+# Encerramento da sessão do banco após cada requisição
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
 
-# Inicialização do banco de dados no contexto da aplicação
+# Inicialização do banco de dados
 with app.app_context():
     print("DEBUG: Inicializando banco de dados.")
     init_db()

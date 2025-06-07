@@ -129,11 +129,9 @@ def disconnect():
 
     return redirect(url_for('gcal.index'))
 
-
 @gcal_bp.route('/sync/<int:transaction_id>')
 @login_required
 def sync_transaction(transaction_id):
-    """Sincroniza uma transação específica com o Google Calendar"""
     auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
     
     if not auth or not auth.sync_enabled:
@@ -147,43 +145,42 @@ def sync_transaction(transaction_id):
         return redirect(url_for('dashboard.index'))
     
     try:
-        # Cria as credenciais
         credentials = Credentials(
             token=auth.access_token,
             refresh_token=auth.refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=json.load(open(CLIENT_SECRETS_FILE))['web']['client_id'],
-            client_secret=json.load(open(CLIENT_SECRETS_FILE))['web']['client_secret'],
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
             scopes=SCOPES
         )
         
-        # Cria o serviço do Calendar
         calendar_service = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-        
-        # Prepara o evento
+
+        data_evento = (transaction.vencimento or transaction.data).strftime('%Y-%m-%d')
+
         event = {
             'summary': transaction.descricao,
             'description': f"Valor: R$ {transaction.valor:.2f} | Categoria: {transaction.categoria.nome if transaction.categoria else 'Sem categoria'} | Tipo: {transaction.tipo.capitalize()}",
             'start': {
-                'date': transaction.vencimento if transaction.vencimento else transaction.data
+                'dateTime': f"{data_evento}T09:00:00",
+                'timeZone': 'America/Sao_Paulo'
             },
             'end': {
-                'date': transaction.vencimento if transaction.vencimento else transaction.data
+                'dateTime': f"{data_evento}T10:00:00",
+                'timeZone': 'America/Sao_Paulo'
             },
             'reminders': {
                 'useDefault': False,
                 'overrides': [
-                    {'method': 'email', 'minutes': 2880},  # 2 dias antes
-                    {'method': 'popup', 'minutes': 1440}   # 1 dia antes
+                    {'method': 'email', 'minutes': 2880},
+                    {'method': 'popup', 'minutes': 1440}
                 ]
             }
         }
-        
-        # Verifica se a transação já tem um evento associado
+
         event_id = getattr(transaction, 'gcal_event_id', None)
-        
+
         if event_id:
-            # Atualiza o evento existente
             calendar_service.events().update(
                 calendarId=auth.calendar_id,
                 eventId=event_id,
@@ -191,16 +188,12 @@ def sync_transaction(transaction_id):
             ).execute()
             flash('Evento atualizado no Google Calendar.', 'success')
         else:
-            # Cria um novo evento
             created_event = calendar_service.events().insert(
                 calendarId=auth.calendar_id,
                 body=event
             ).execute()
-            
-            # Armazena o ID do evento
             transaction.gcal_event_id = created_event['id']
             db_session.commit()
-            
             flash('Evento criado no Google Calendar.', 'success')
         
         return redirect(url_for('dashboard.index'))
@@ -211,14 +204,12 @@ def sync_transaction(transaction_id):
 @gcal_bp.route('/sync_all')
 @login_required
 def sync_all():
-    """Sincroniza todas as transações com o Google Calendar"""
     auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
     
     if not auth or not auth.sync_enabled:
         flash('Sincronização com Google Calendar não está habilitada.', 'warning')
         return redirect(url_for('gcal.index'))
     
-    # Obtém todas as transações do tipo despesa (apenas despesas são sincronizadas)
     transactions = Transaction.query.filter_by(
         user_id=current_user.id,
         tipo='despesa'
@@ -229,71 +220,63 @@ def sync_all():
         return redirect(url_for('gcal.index'))
     
     try:
-        # Cria as credenciais
         credentials = Credentials(
             token=auth.access_token,
             refresh_token=auth.refresh_token,
             token_uri="https://oauth2.googleapis.com/token",
-            client_id=json.load(open(CLIENT_SECRETS_FILE))['web']['client_id'],
-            client_secret=json.load(open(CLIENT_SECRETS_FILE))['web']['client_secret'],
+            client_id=GOOGLE_CLIENT_ID,
+            client_secret=GOOGLE_CLIENT_SECRET,
             scopes=SCOPES
         )
         
-        # Cria o serviço do Calendar
         calendar_service = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
-        
-        # Contador de eventos sincronizados
+
         synced_count = 0
-        
+
         for transaction in transactions:
             try:
-                # Prepara o evento
+                data_evento = (transaction.vencimento or transaction.data).strftime('%Y-%m-%d')
+
                 event = {
                     'summary': transaction.descricao,
                     'description': f"Valor: R$ {transaction.valor:.2f} | Categoria: {transaction.categoria.nome if transaction.categoria else 'Sem categoria'} | Tipo: {transaction.tipo.capitalize()}",
                     'start': {
-                        'date': transaction.vencimento if transaction.vencimento else transaction.data
+                        'dateTime': f"{data_evento}T09:00:00",
+                        'timeZone': 'America/Sao_Paulo'
                     },
                     'end': {
-                        'date': transaction.vencimento if transaction.vencimento else transaction.data
+                        'dateTime': f"{data_evento}T10:00:00",
+                        'timeZone': 'America/Sao_Paulo'
                     },
                     'reminders': {
                         'useDefault': False,
                         'overrides': [
-                            {'method': 'email', 'minutes': 2880},  # 2 dias antes
-                            {'method': 'popup', 'minutes': 1440}   # 1 dia antes
+                            {'method': 'email', 'minutes': 2880},
+                            {'method': 'popup', 'minutes': 1440}
                         ]
                     }
                 }
-                
-                # Verifica se a transação já tem um evento associado
+
                 event_id = getattr(transaction, 'gcal_event_id', None)
-                
+
                 if event_id:
-                    # Atualiza o evento existente
                     calendar_service.events().update(
                         calendarId=auth.calendar_id,
                         eventId=event_id,
                         body=event
                     ).execute()
                 else:
-                    # Cria um novo evento
                     created_event = calendar_service.events().insert(
                         calendarId=auth.calendar_id,
                         body=event
                     ).execute()
-                    
-                    # Armazena o ID do evento
                     transaction.gcal_event_id = created_event['id']
                 
                 synced_count += 1
-            except Exception as e:
-                # Continua para a próxima transação em caso de erro
+            except Exception:
                 continue
         
-        # Salva todas as alterações
         db_session.commit()
-        
         flash(f'{synced_count} despesas sincronizadas com Google Calendar.', 'success')
         return redirect(url_for('gcal.index'))
     except Exception as e:
@@ -303,14 +286,12 @@ def sync_all():
 @gcal_bp.route('/toggle_sync')
 @login_required
 def toggle_sync():
-    """Ativa/desativa a sincronização com o Google Calendar"""
     auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
     
     if not auth:
         flash('Nenhuma conta Google conectada.', 'warning')
         return redirect(url_for('gcal.index'))
     
-    # Inverte o estado de sincronização
     auth.sync_enabled = 0 if auth.sync_enabled else 1
     db_session.commit()
     
