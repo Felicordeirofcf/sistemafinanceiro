@@ -49,10 +49,10 @@ def index():
     # Obtém os anos disponíveis para o filtro - CORRIGIDO para SQLAlchemy 2.0+
     # Consulta direta para extrair anos distintos das datas de transações
     query = text("""
-        SELECT DISTINCT STRFTIME('%Y', transactions.data) AS year
-        FROM transactions
-    """)
-    years_data = db_session.execute(query).fetchall()
+    SELECT DISTINCT TO_CHAR(transactions.data, 'YYYY') AS year
+    FROM transactions
+""")
+years_data = db_session.execute(query).fetchall()
     
     available_years = set(year[0] for year in years_data if year[0])
     
