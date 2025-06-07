@@ -402,4 +402,6 @@ try:
         scopes=["https://www.googleapis.com/auth/calendar"]
     )
 except Exception as e:
-    print("Erro ao criar credenciais:", e)
+    import traceback
+    print("🔥 ERRO ao criar credenciais 🔥")
+    traceback.print_exc()
