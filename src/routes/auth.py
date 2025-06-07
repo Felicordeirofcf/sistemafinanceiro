@@ -99,7 +99,7 @@ def google_callback():
 
         user = User.query.filter_by(email=email).first()
         if not user:
-            user = User(username=name, email=email, password_hash=None)
+            user = User(username=name, email=email, password=None)
             db_session.add(user)
             db_session.commit()
 
