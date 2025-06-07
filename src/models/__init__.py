@@ -54,3 +54,5 @@ def init_db():
 
 # Executa o teste de conexão ao carregar o módulo
 test_connection()
+
+

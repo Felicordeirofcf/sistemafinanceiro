@@ -3,18 +3,9 @@ from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
-try:
-    from src.models import db_session
-    from src.models.transaction import Transaction
-    from src.models.category import Category
-    from src.models.google_calendar_auth import GoogleCalendarAuth
-    from src.routes.gcal import sync_transaction
-except ImportError:
-    from models import db_session
-    from models.transaction import Transaction
-    from models.category import Category
-    from models.google_calendar_auth import GoogleCalendarAuth
-    from routes.gcal import sync_transaction
+from src.models import db_session
+from src.models.transaction import Transaction
+from src.models.category import Category
 
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
 
@@ -64,12 +55,6 @@ def add():
         # Se for uma despesa recorrente, gera as próximas ocorrências
         if is_recurring and tipo == "despesa":
             generate_recurring_transactions(transaction)
-        
-        # Verifica se o usuário tem integração com Google Calendar ativa
-        auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id, sync_enabled=1).first()
-        if auth and tipo == "despesa":
-            # Sincroniza a transação com o Google Calendar
-            return redirect(url_for("gcal.sync_transaction", transaction_id=transaction.id))
         
         flash("Transação adicionada com sucesso!", "success")
         return redirect(url_for("dashboard.index"))
@@ -163,12 +148,6 @@ def edit(id):
             
             flash("Transação atualizada com sucesso!", "success")
         
-        # Verifica se o usuário tem integração com Google Calendar ativa
-        auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id, sync_enabled=1).first()
-        if auth and tipo == "despesa":
-            # Sincroniza a transação com o Google Calendar
-            return redirect(url_for("gcal.sync_transaction", transaction_id=transaction.id))
-        
         return redirect(url_for("dashboard.index"))
 
 @transactions_bp.route("/delete/<int:id>")
@@ -200,20 +179,16 @@ def delete(id):
         ).all()
         
         for future in future_transactions:
-            # Exclui evento do Google Calendar se existir
-            delete_gcal_event(future)
             db_session.delete(future)
         
         # Se a transação atual for a pai, também a exclui
         if transaction.id == parent_id:
-            delete_gcal_event(transaction)
             db_session.delete(transaction)
         
         db_session.commit()
         flash("Todas as ocorrências futuras foram excluídas com sucesso!", "success")
     else:
         # Exclui apenas a transação atual
-        delete_gcal_event(transaction)
         db_session.delete(transaction)
         db_session.commit()
         flash("Transação excluída com sucesso!", "success")
@@ -233,12 +208,6 @@ def toggle_status(id):
     # Inverte o status de pagamento
     transaction.pago = not transaction.pago
     db_session.commit()
-    
-    # Verifica se o usuário tem integração com Google Calendar ativa
-    auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id, sync_enabled=1).first()
-    if auth and transaction.tipo == "despesa":
-        # Sincroniza a transação com o Google Calendar
-        return redirect(url_for("gcal.sync_transaction", transaction_id=transaction.id))
     
     status = "paga" if transaction.pago else "pendente"
     flash(f"Transação marcada como {status}.", "success")
@@ -370,36 +339,4 @@ def generate_recurring_transactions(transaction, limit=12):
     db_session.commit()
     return count
 
-def delete_gcal_event(transaction):
-    """Exclui o evento do Google Calendar associado a uma transação"""
-    # Verifica se há um evento do Google Calendar associado
-    event_id = getattr(transaction, "gcal_event_id", None)
-    auth = GoogleCalendarAuth.query.filter_by(user_id=transaction.user_id, sync_enabled=1).first()
-    
-    # Se houver evento associado e integração ativa, exclui o evento
-    if event_id and auth:
-        from google.oauth2.credentials import Credentials
-        from googleapiclient.discovery import build
-        import json
-        import os
-        
-        # Caminho para o arquivo de credenciais
-        CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "client_secret.json")
-        
-        # Cria as credenciais
-        try:
-            with open(CLIENT_SECRETS_FILE) as f:
-                secrets = json.load(f)["web"]
 
-            credentials = Credentials(
-                token=auth.access_token,
-                refresh_token=auth.refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=secrets["client_id"],
-                client_secret=secrets["client_secret"],
-                scopes=["https://www.googleapis.com/auth/calendar"]
-            )
-        except Exception as e:
-            import traceback
-            print("🔥 ERRO ao criar credenciais 🔥")
-            traceback.print_exc()

@@ -6,23 +6,7 @@ from src.models import db_session
 from src.models.user import User
 from src.models.category import Category
 
-from google_auth_oauthlib.flow import Flow
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
-import os
-
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
-
-# Configurações OAuth
-SCOPES = [
-    'https://www.googleapis.com/auth/userinfo.email',
-    'https://www.googleapis.com/auth/userinfo.profile',
-    'openid'
-]
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
-
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
@@ -43,89 +27,6 @@ def login():
         return redirect(url_for("dashboard.index"))
 
     return render_template("auth/login.html")
-
-
-@auth_bp.route("/login/google")
-def login_google():
-    try:
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": GOOGLE_CLIENT_ID,
-                    "client_secret": GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [GOOGLE_REDIRECT_URI]
-                }
-            },
-            scopes=SCOPES,
-            redirect_uri=GOOGLE_REDIRECT_URI
-        )
-
-        authorization_url, state = flow.authorization_url()
-        session['state'] = state
-        return redirect(authorization_url)
-
-    except Exception as e:
-        flash(f"Erro ao iniciar login com Google: {e}", "danger")
-        return redirect(url_for("auth.login"))
-
-
-@auth_bp.route("/google/callback")
-def google_callback():
-    try:
-        print("[GOOGLE_CALLBACK] Iniciando callback")
-        state = session.get('state')
-
-        flow = Flow.from_client_config(
-            {
-                "web": {
-                    "client_id": GOOGLE_CLIENT_ID,
-                    "client_secret": GOOGLE_CLIENT_SECRET,
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": [GOOGLE_REDIRECT_URI]
-                }
-            },
-            scopes=SCOPES,
-            state=state,
-            redirect_uri=GOOGLE_REDIRECT_URI
-        )
-
-        flow.fetch_token(authorization_response=request.url)
-        credentials = flow.credentials
-
-        request_session = google_requests.Request()
-        id_info = id_token.verify_oauth2_token(
-            credentials._id_token,
-            request_session,
-            GOOGLE_CLIENT_ID
-        )
-
-        print("[GOOGLE_CALLBACK] Token recebido com sucesso.")
-        print("[GOOGLE_CALLBACK] id_info:", id_info)
-
-        email = id_info['email']
-        name = id_info.get('name', 'Usuário Google')
-
-        user = User.query.filter_by(email=email).first()
-        if not user:
-            user = User(username=name, email=email, password=None)
-            db_session.add(user)
-            db_session.commit()
-            print(f"[GOOGLE_CALLBACK] Novo usuário criado: {user.username}")
-        else:
-            print(f"[GOOGLE_CALLBACK] Usuário já existente: {user.username}")
-
-        login_user(user)
-        print(f"[GOOGLE_CALLBACK] Login efetuado: {user.username}")
-        flash("Login com Google realizado com sucesso!", "success")
-        return redirect(url_for("dashboard.index"))
-
-    except Exception as e:
-        print(f"[GOOGLE_CALLBACK] Erro: {e}")
-        flash(f"Erro ao autenticar com Google: {e}", "danger")
-        return redirect(url_for("auth.login"))
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
@@ -171,10 +72,11 @@ def register():
 
     return render_template("auth/register.html")
 
-
 @auth_bp.route("/logout")
 @login_required
 def logout():
     logout_user()
     flash("Você saiu do sistema.", "info")
     return redirect(url_for("auth.login"))
+
+

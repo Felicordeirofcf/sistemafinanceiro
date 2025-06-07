@@ -34,3 +34,5 @@ class User(Base, UserMixin):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+
