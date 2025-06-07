@@ -5,25 +5,31 @@ from src.models import db_session
 from src.models.transaction import Transaction
 import smtplib
 from email.message import EmailMessage
+import os
 
 alerts_bp = Blueprint("alerts", __name__, url_prefix="/alerts")
 
+# Função utilitária para envio de e-mails
 def enviar_email(destinatario, assunto, corpo):
     msg = EmailMessage()
     msg["Subject"] = assunto
-    msg["From"] = "seu_email@gmail.com"  # Substitua pelo seu e-mail
+    msg["From"] = os.getenv("EMAIL_USER", "seu_email@gmail.com")  # fallback se variável não existir
     msg["To"] = destinatario
-    msg.set_content(corpo, subtype=\'html\')
+    msg.set_content(corpo, subtype='html')
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login("seu_email@gmail.com", "sua_senha_de_app")  # Substitua pelo seu e-mail e senha de app
+            smtp.login(
+                os.getenv("EMAIL_USER", "seu_email@gmail.com"),
+                os.getenv("EMAIL_PASS", "sua_senha_de_app")
+            )
             smtp.send_message(msg)
         return True
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")
         return False
 
+# Rota para verificar despesas próximas do vencimento (usada pelo frontend)
 @alerts_bp.route("/check")
 @login_required
 def check_alerts():
@@ -49,6 +55,7 @@ def check_alerts():
         print(f"Error in check_alerts: {e}")
         return jsonify({"error": "Internal Server Error", "message": str(e)}), 500
 
+# Rota para envio de e-mail com as despesas próximas do vencimento
 @alerts_bp.route("/send-email-alerts")
 @login_required
 def send_email_alerts():
@@ -72,15 +79,27 @@ def send_email_alerts():
         num_expenses = len(upcoming_due)
 
         email_subject = "Alerta de Despesas - Sistema Financeiro"
-        email_body = f"<h2>Alerta de Despesas Próximas do Vencimento</h2>"
-        email_body += f"<p>Você tem {num_expenses} despesa(s) que vence(m) nos próximos dias. Valor total: R$ {total_value:.2f}.</p>"
-        email_body += "<p>As seguintes despesas estão próximas do vencimento:</p>"
-        email_body += "<table border=\'1\' cellpadding=\'5\' style=\'border-collapse: collapse;\'>"
-        email_body += "<tr><th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Categoria</th></tr>"
+        email_body = f"""
+        <h2>Alerta de Despesas Próximas do Vencimento</h2>
+        <p>Você tem {num_expenses} despesa(s) que vence(m) nos próximos dias. Valor total: R$ {total_value:.2f}.</p>
+        <p>As seguintes despesas estão próximas do vencimento:</p>
+        <table border='1' cellpadding='5' style='border-collapse: collapse;'>
+            <tr>
+                <th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Categoria</th>
+            </tr>
+        """
 
         for transaction in upcoming_due:
             vencimento = transaction.vencimento.strftime("%d/%m/%Y")
-            email_body += f"<tr><td>{transaction.descricao}</td><td>R$ {transaction.valor:.2f}</td><td>{vencimento}</td><td>{transaction.categoria.nome if transaction.categoria else \'Sem categoria\'}</td></tr>"
+            categoria = transaction.categoria.nome if transaction.categoria else "Sem categoria"
+            email_body += f"""
+            <tr>
+                <td>{transaction.descricao}</td>
+                <td>R$ {transaction.valor:.2f}</td>
+                <td>{vencimento}</td>
+                <td>{categoria}</td>
+            </tr>
+            """
 
         email_body += "</table><p>Acesse o sistema para mais detalhes.</p>"
 
@@ -94,6 +113,7 @@ def send_email_alerts():
 
     return redirect(url_for("dashboard.index"))
 
+# Rota usada para descartar o alerta no frontend (via modal)
 @alerts_bp.route("/dismiss/<int:transaction_id>", methods=["POST"])
 @login_required
 def dismiss_alert(transaction_id):
@@ -101,14 +121,10 @@ def dismiss_alert(transaction_id):
         transaction = Transaction.query.filter_by(id=transaction_id, user_id=current_user.id).first()
 
         if transaction:
-            # Assuming \'notificado\' field exists in Transaction model or can be added
-            # If not, you might need to add it to the Transaction model
-            # For now, we\'ll just return success as the original code had a \'notificado\' check
+            # Aqui você poderia marcar como "notificado" se tiver um campo para isso
             return jsonify({"success": True})
 
         return jsonify({"success": False, "message": "Transação não encontrada"}), 404
     except Exception as e:
         print(f"Error in dismiss_alert: {e}")
         return jsonify({"success": False, "message": str(e)}), 500
-
-
