@@ -1,12 +1,16 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import LoginManager, current_user, login_required
 from flask_mail import Mail
+from dotenv import load_dotenv
 import os
 import sys
 from datetime import datetime, timedelta
 import sqlite3
 
 print("DEBUG: Iniciando main.py")
+
+# Carrega variáveis do arquivo .env automaticamente
+load_dotenv()
 
 # Configuração do caminho para importações
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +25,6 @@ try:
     from src.models.category import Category
     from src.models.google_calendar_auth import GoogleCalendarAuth
 
-    # Importação das rotas
     from src.routes.auth import auth_bp
     from src.routes.transactions import transactions_bp
     from src.routes.dashboard import dashboard_bp
@@ -34,7 +37,6 @@ except ImportError:
     from models.category import Category
     from models.google_calendar_auth import GoogleCalendarAuth
 
-    # Importação das rotas
     from routes.auth import auth_bp
     from routes.transactions import transactions_bp
     from routes.dashboard import dashboard_bp
@@ -45,13 +47,13 @@ print("DEBUG: Modelos e rotas importados.")
 
 # Criação da aplicação Flask
 app = Flask(__name__)
-from src.config import SECRET_KEY, DATABASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI
 
-app.config["SECRET_KEY"] = SECRET_KEY
-app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
-app.config["GOOGLE_CLIENT_ID"] = GOOGLE_CLIENT_ID
-app.config["GOOGLE_CLIENT_SECRET"] = GOOGLE_CLIENT_SECRET
-app.config["GOOGLE_REDIRECT_URI"] = GOOGLE_REDIRECT_URI
+# Importa variáveis de ambiente do .env via os.getenv
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
+app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
+app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # Configuração do Flask-Mail
@@ -85,19 +87,19 @@ app.register_blueprint(gcal_bp)
 
 print("DEBUG: Blueprints registrados.")
 
-# Rota principal - redireciona para o dashboard
+# Rota principal
 @app.route("/")
 def index():
     if current_user.is_authenticated:
         return redirect(url_for("dashboard.index"))
     return redirect(url_for("auth.login"))
 
-# Encerramento da sessão do banco de dados ao finalizar a requisição
+# Finalização da sessão
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
 
-# Inicialização do banco de dados
+# Inicialização do banco
 with app.app_context():
     print("DEBUG: Entrando no contexto da aplicação para inicializar o DB.")
     init_db()
