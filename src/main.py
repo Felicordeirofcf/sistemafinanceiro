@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import LoginManager, current_user, login_required
+from flask_mail import Mail
 import os
 import sys
 from datetime import datetime, timedelta
@@ -11,14 +12,6 @@ print("DEBUG: Iniciando main.py")
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.insert(0, parent_dir)
-
-# Função para verificar e atualizar o esquema do banco de dados
-# Esta função deve ser executada ANTES de qualquer importação de modelos
-
-
-# Executa a migração do banco ANTES de importar os modelos
-# Isso garante que as colunas existam antes de qualquer consulta ORM
-
 
 # Importação dos modelos e sessão do banco de dados
 try:
@@ -59,8 +52,17 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL
 app.config["GOOGLE_CLIENT_ID"] = GOOGLE_CLIENT_ID
 app.config["GOOGLE_CLIENT_SECRET"] = GOOGLE_CLIENT_SECRET
 app.config["GOOGLE_REDIRECT_URI"] = GOOGLE_REDIRECT_URI
-
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Configuração do Flask-Mail
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', 'seu_email@gmail.com')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', 'sua_senha_de_app')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', 'seu_email@gmail.com')
+
+mail = Mail(app)
 
 print("DEBUG: Configurações do Flask aplicadas.")
 
@@ -79,7 +81,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(transactions_bp)
 app.register_blueprint(dashboard_bp)
 app.register_blueprint(alerts_bp)
-app.register_blueprint(gcal_bp)  # Novo blueprint para Google Calendar
+app.register_blueprint(gcal_bp)
 
 print("DEBUG: Blueprints registrados.")
 
@@ -95,24 +97,14 @@ def index():
 def shutdown_session(exception=None):
     db_session.remove()
 
-# Inicialização do banco de dados e criação das categorias padrão
+# Inicialização do banco de dados
 with app.app_context():
     print("DEBUG: Entrando no contexto da aplicação para inicializar o DB.")
-    # Inicializa o banco de dados
     init_db()
     print("DEBUG: init_db() concluído.")
     print("Tabelas criadas ou já existentes no banco de dados.")
-    
-    # A lógica de criação de categorias padrão foi removida daqui
-    # para evitar o erro ForeignKeyViolation, pois ela dependia de um
-    # user_id fixo que pode não existir no momento da inicialização.
-    # As categorias devem ser criadas após o registro do usuário
-    # ou por um processo de seed de dados separado.
 
 print("DEBUG: Preparando para executar a aplicação.")
-# Execução da aplicação
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
 print("DEBUG: Aplicação encerrada.")
-
-
