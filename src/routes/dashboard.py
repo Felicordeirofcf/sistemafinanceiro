@@ -49,17 +49,17 @@ def index():
     # Obtém os anos disponíveis para o filtro - CORRIGIDO para SQLAlchemy 2.0+
     # Consulta direta para extrair anos distintos das datas de transações
     query = text("""
-    SELECT DISTINCT TO_CHAR(transactions.data, 'YYYY') AS year
-    FROM transactions
-""")
-years_data = db_session.execute(query).fetchall()
+        SELECT DISTINCT TO_CHAR(transactions.data, 'YYYY') AS year
+        FROM transactions
+    """)
+    years_data = db_session.execute(query).fetchall()
 
-available_years = set(year[0] for year in years_data if year[0])
+    available_years = set(year[0] for year in years_data if year[0])
     
     # Adiciona o ano atual se não estiver na lista
     current_year = now.year
-    available_years.add(current_year)
-    available_years = sorted(list(available_years), reverse=True)
+available_years.add(current_year)
+available_years = sorted(list(available_years), reverse=True)
     
     # Obtém o nome do mês
     month_names = [
