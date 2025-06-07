@@ -18,15 +18,24 @@ dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 @login_required
 def index():
     """Rota principal do dashboard"""
-    # Obtém o mês e ano atuais ou os selecionados via parâmetros
     now = datetime.now()
-    selected_month = int(request.args.get("mes", now.month))
-    selected_year = int(request.args.get("ano", now.year))
-    
+
+    # Proteção contra valores inválidos de mês e ano na query string
+    try:
+        selected_month = int(request.args.get("mes", now.month))
+        selected_year = int(request.args.get("ano", now.year))
+    except (ValueError, TypeError):
+        selected_month = now.month
+        selected_year = now.year
+
+    # Garante que o mês esteja entre 1 e 12
+    if not (1 <= selected_month <= 12):
+        selected_month = now.month
+
     # Obtém as transações do mês selecionado
     start_date = f"{selected_year}-{selected_month:02d}-01"
-    
-    # Calcula o último dia do mês
+
+    # Calcula o primeiro dia do próximo mês
     if selected_month == 12:
         end_date = f"{selected_year + 1}-01-01"
     else:
