@@ -378,30 +378,28 @@ def delete_gcal_event(transaction):
     
     # Se houver evento associado e integração ativa, exclui o evento
     if event_id and auth:
+        from google.oauth2.credentials import Credentials
+        from googleapiclient.discovery import build
+        import json
+        import os
+        
+        # Caminho para o arquivo de credenciais
+        CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "client_secret.json")
+        
+        # Cria as credenciais
         try:
-            from google.oauth2.credentials import Credentials
-            from googleapiclient.discovery import build
-            import json
-            import os
-            
-            # Caminho para o arquivo de credenciais
-            CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "client_secret.json")
-            
-            # Cria as credenciais
-# Cria as credenciais
-try:
-    with open(CLIENT_SECRETS_FILE) as f:
-        secrets = json.load(f)["web"]
+            with open(CLIENT_SECRETS_FILE) as f:
+                secrets = json.load(f)["web"]
 
-    credentials = Credentials(
-        token=auth.access_token,
-        refresh_token=auth.refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=secrets["client_id"],
-        client_secret=secrets["client_secret"],
-        scopes=["https://www.googleapis.com/auth/calendar"]
-    )
-except Exception as e:
-    import traceback
-    print("🔥 ERRO ao criar credenciais 🔥")
-    traceback.print_exc()
+            credentials = Credentials(
+                token=auth.access_token,
+                refresh_token=auth.refresh_token,
+                token_uri="https://oauth2.googleapis.com/token",
+                client_id=secrets["client_id"],
+                client_secret=secrets["client_secret"],
+                scopes=["https://www.googleapis.com/auth/calendar"]
+            )
+        except Exception as e:
+            import traceback
+            print("🔥 ERRO ao criar credenciais 🔥")
+            traceback.print_exc()
