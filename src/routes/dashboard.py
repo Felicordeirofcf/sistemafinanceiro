@@ -137,13 +137,12 @@ def index():
     # Obtém o total de despesas fixas/recorrentes (apenas as 
 
 
-originais, não as geradas)
-    recurring_count = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        Transaction.is_recurring == True,
-        Transaction.parent_transaction_id == None
-    ).count()
-    
+# originais, não as geradas
+recurring_count = Transaction.query.filter(
+    Transaction.user_id == current_user.id,
+    Transaction.is_recurring == True,
+    Transaction.parent_transaction_id == None
+).count()
     return render_template(
         "dashboard/index.html",
         transactions=transactions,
