@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required, current_user
 import os
-import json
 from datetime import datetime, timedelta
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -12,68 +11,51 @@ from src.models import db_session
 from src.models.transaction import Transaction
 from src.models.google_calendar_auth import GoogleCalendarAuth
 
-# Configuração do Blueprint
+# Blueprint configuration
 gcal_bp = Blueprint('gcal', __name__, url_prefix='/gcal')
 
-# Configurações do OAuth
-CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'client_secret.json')
+# OAuth configurations from environment variables
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 API_SERVICE_NAME = 'calendar'
 API_VERSION = 'v3'
-
-# Verificar se o arquivo de credenciais existe
-if not os.path.exists(CLIENT_SECRETS_FILE):
-    # Criar um arquivo de exemplo para orientar o usuário
-    with open(CLIENT_SECRETS_FILE, 'w') as f:
-        f.write(json.dumps({
-            "web": {
-                "client_id": "SEU_CLIENT_ID_AQUI",
-                "project_id": "SEU_PROJECT_ID_AQUI",
-                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token",
-                "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-                "client_secret": "SEU_CLIENT_SECRET_AQUI",
-                "redirect_uris": ["http://localhost:5000/gcal/oauth2callback"]
-            }
-        }, indent=4))
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
 
 @gcal_bp.route('/')
 @login_required
 def index():
-    """Página principal de configuração do Google Calendar"""
-    # Verifica se o usuário já está autenticado
+    auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
     if not auth:
         return redirect(url_for("gcal.authorize"))
-    
-    return render_template(
-        'gcal/index.html',
-        auth=auth
-    )
+    return render_template('gcal/index.html', auth=auth)
 
 @gcal_bp.route('/authorize')
 @login_required
 def authorize():
-    """Inicia o fluxo de autorização OAuth"""
-    # Cria o fluxo de autorização usando o arquivo de credenciais
     try:
-        flow = Flow.from_client_secrets_file(
-            CLIENT_SECRETS_FILE,
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [GOOGLE_REDIRECT_URI]
+                }
+            },
             scopes=SCOPES,
-            redirect_uri=url_for('gcal.oauth2callback', _external=True)
+            redirect_uri=GOOGLE_REDIRECT_URI
         )
-        
-        # Gera a URL de autorização
+
         authorization_url, state = flow.authorization_url(
             access_type='offline',
             include_granted_scopes='true',
-            prompt='consent'  # Força a exibição da tela de consentimento para obter refresh_token
+            prompt='consent'
         )
-        
-        # Armazena o estado na sessão para validação posterior
         session['state'] = state
-        
-        # Redireciona para a URL de autorização
         return redirect(authorization_url)
+
     except Exception as e:
         flash(f'Erro ao iniciar autorização: {str(e)}', 'danger')
         return redirect(url_for('gcal.index'))
@@ -81,50 +63,51 @@ def authorize():
 @gcal_bp.route('/oauth2callback')
 @login_required
 def oauth2callback():
-    """Callback para processar a resposta da autorização OAuth"""
-    # Verifica o estado para prevenir ataques CSRF
     state = session.get('state')
     if not state or state != request.args.get('state'):
-        flash('Erro de validação de estado. Tente novamente.', 'danger')
+        flash('Erro de validação de estado.', 'danger')
         return redirect(url_for('gcal.index'))
-    
+
     try:
-        # Cria o fluxo de autorização
-        flow = Flow.from_client_secrets_file(
-            CLIENT_SECRETS_FILE,
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [GOOGLE_REDIRECT_URI]
+                }
+            },
             scopes=SCOPES,
             state=state,
-            redirect_uri=url_for('gcal.oauth2callback', _external=True)
+            redirect_uri=GOOGLE_REDIRECT_URI
         )
-        
-        # Processa a resposta da autorização
+
         flow.fetch_token(authorization_response=request.url)
         credentials = flow.credentials
-        
-        # Armazena as credenciais no banco de dados
+
         auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
         if not auth:
             auth = GoogleCalendarAuth(user_id=current_user.id)
             db_session.add(auth)
-        
+
         auth.access_token = credentials.token
         auth.refresh_token = credentials.refresh_token
         auth.token_expiry = datetime.utcnow() + timedelta(seconds=credentials.expiry)
-        
-        # Obtém o ID do calendário principal do usuário
+
         calendar_service = build(API_SERVICE_NAME, API_VERSION, credentials=credentials)
         calendar_list = calendar_service.calendarList().list().execute()
         primary_calendar = next((cal for cal in calendar_list.get('items', []) if cal.get('primary')), None)
-        
+
         if primary_calendar:
             auth.calendar_id = primary_calendar['id']
-        
+
         db_session.commit()
-        
+
         flash('Conta Google conectada com sucesso!', 'success')
-        
-        # Sincroniza as transações existentes
         return redirect(url_for('gcal.sync_all'))
+
     except Exception as e:
         flash(f'Erro ao processar autorização: {str(e)}', 'danger')
         return redirect(url_for('gcal.index'))
@@ -132,32 +115,20 @@ def oauth2callback():
 @gcal_bp.route('/disconnect')
 @login_required
 def disconnect():
-    """Desconecta a conta Google"""
     auth = GoogleCalendarAuth.query.filter_by(user_id=current_user.id).first()
-    
+
     if auth:
         try:
-            # Revoga o token de acesso
-            credentials = Credentials(
-                token=auth.access_token,
-                refresh_token=auth.refresh_token,
-                token_uri="https://oauth2.googleapis.com/token",
-                client_id=json.load(open(CLIENT_SECRETS_FILE))['web']['client_id'],
-                client_secret=json.load(open(CLIENT_SECRETS_FILE))['web']['client_secret'],
-                scopes=SCOPES
-            )
-            
-            # Remove do banco de dados
             db_session.delete(auth)
             db_session.commit()
-            
             flash('Conta Google desconectada com sucesso!', 'success')
         except Exception as e:
             flash(f'Erro ao desconectar conta: {str(e)}', 'danger')
     else:
         flash('Nenhuma conta Google conectada.', 'warning')
-    
+
     return redirect(url_for('gcal.index'))
+
 
 @gcal_bp.route('/sync/<int:transaction_id>')
 @login_required
