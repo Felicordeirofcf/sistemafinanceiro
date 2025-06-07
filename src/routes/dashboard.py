@@ -59,20 +59,18 @@ def index():
     # Obtém os anos disponíveis para o filtro
     # CORREÇÃO: Substituído STRFTIME (SQLite) por TO_CHAR (PostgreSQL) para extrair o ano.
     # A consulta agora usa um parâmetro nomeado (:user_id) e é executada com um dicionário.
-    query = text("""
-        SELECT DISTINCT TO_CHAR(transactions.data, 'YYYY') AS year
-        FROM transactions
-        WHERE user_id = :user_id
-    """)
-    years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
-    
-    # Converte os anos para string para consistência com a saída de TO_CHAR
-    available_years = set(year[0] for year in years_data if year[0])
-    
-    # Adiciona o ano atual se não estiver na lista e garante que seja string
-    current_year_str = str(now.year)
-    available_years.add(current_year_str)
-    available_years = sorted(list(available_years), reverse=True)
+   uery = text("""
+    SELECT DISTINCT TO_CHAR(TO_DATE(transactions.data, 'YYYY-MM-DD'), 'YYYY') AS year
+    FROM transactions
+    WHERE user_id = :user_id
+""")
+years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
+available_years = set(year[0] for year in years_data if year[0])
+
+# Adiciona o ano atual se não estiver na lista
+current_year = now.year
+available_years.add(current_year)
+available_years = sorted(list(available_years), reverse=True)
     
     # Obtém o nome do mês por extenso
     month_names = [
