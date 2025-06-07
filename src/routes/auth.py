@@ -10,21 +10,22 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for("dashboard.index"))
-
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        remember = bool(request.form.get("remember"))
-
         user = User.query.filter_by(username=username).first()
-        if not user or not user.check_password(password):
-            flash("Usuário ou senha incorretos.", "danger")
-            return redirect(url_for("auth.login"))
 
-        login_user(user, remember=remember)
-        return redirect(url_for("dashboard.index"))
+        if user:
+            print(f"[DEBUG] Usuário encontrado: {user.username}")
+        else:
+            print(f"[DEBUG] Usuário não encontrado: {username}")
+
+        if user and check_password_hash(user.password_hash, password):
+            login_user(user, remember='remember' in request.form)
+            print(f"[DEBUG] Login bem-sucedido: {username}")
+            return redirect(url_for("dashboard.index"))
+        else:
+            flash("Credenciais inválidas", "danger")
 
     return render_template("auth/login.html")
 
