@@ -62,6 +62,11 @@ app.config["GOOGLE_CLIENT_ID"] = os.getenv("GOOGLE_CLIENT_ID")
 app.config["GOOGLE_CLIENT_SECRET"] = os.getenv("GOOGLE_CLIENT_SECRET")
 app.config["GOOGLE_REDIRECT_URI"] = os.getenv("GOOGLE_REDIRECT_URI")
 
+# Configurações de sessão seguras para produção
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = True  # Requer HTTPS (ativado no Railway)
+app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=7)
+
 # Configuração do e-mail (opcional)
 app.config["MAIL_SERVER"] = "smtp.gmail.com"
 app.config["MAIL_PORT"] = 587
@@ -96,7 +101,9 @@ print("DEBUG: Blueprints registrados.")
 # Rota raiz
 @app.route("/")
 def index():
+    print(f"[ROOT] Usuário autenticado? {current_user.is_authenticated}")
     if current_user.is_authenticated:
+        print(f"[ROOT] Redirecionando para dashboard de: {current_user.username}")
         return redirect(url_for("dashboard.index"))
     return redirect(url_for("auth.login"))
 

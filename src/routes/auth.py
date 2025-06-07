@@ -102,12 +102,17 @@ def google_callback():
             user = User(username=name, email=email, password=None)
             db_session.add(user)
             db_session.commit()
+            print(f"[GOOGLE] Novo usuário criado: {user.username} (ID: {user.id})")
+        else:
+            print(f"[GOOGLE] Usuário existente encontrado: {user.username} (ID: {user.id})")
 
         login_user(user)
+        print(f"[GOOGLE] Login realizado com sucesso para: {user.username}")
         flash("Login com Google realizado com sucesso!", "success")
         return redirect(url_for("dashboard.index"))
 
     except Exception as e:
+        print(f"[GOOGLE] Erro no login com Google: {e}")
         flash(f"Erro ao autenticar com Google: {e}", "danger")
         return redirect(url_for("auth.login"))
 
