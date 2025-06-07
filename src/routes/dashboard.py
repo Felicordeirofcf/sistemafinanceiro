@@ -143,6 +143,11 @@ recurring_count = Transaction.query.filter(
     Transaction.is_recurring == True,
     Transaction.parent_transaction_id == None
 ).count()
+
+@dashboard_bp.route("/")
+@login_required
+def index():
+    ...
     return render_template(
         "dashboard/index.html",
         transactions=transactions,
