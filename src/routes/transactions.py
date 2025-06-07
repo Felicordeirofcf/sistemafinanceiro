@@ -388,8 +388,11 @@ def delete_gcal_event(transaction):
             CLIENT_SECRETS_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "client_secret.json")
             
             # Cria as credenciais
-            # Cria as credenciais
+# Cria as credenciais
 try:
+    with open(CLIENT_SECRETS_FILE) as f:
+        secrets = json.load(f)["web"]
+
     credentials = Credentials(
         token=auth.access_token,
         refresh_token=auth.refresh_token,
@@ -400,4 +403,3 @@ try:
     )
 except Exception as e:
     print("Erro ao criar credenciais:", e)
-
