@@ -389,13 +389,15 @@ def delete_gcal_event(transaction):
             
             # Cria as credenciais
             # Cria as credenciais
-credentials = Credentials(
-    token=auth.access_token,
-    refresh_token=auth.refresh_token,
-    token_uri="https://oauth2.googleapis.com/token",
-    client_id=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_id"],
-    client_secret=json.load(open(CLIENT_SECRETS_FILE))["web"]["client_secret"],
-    scopes=["https://www.googleapis.com/auth/calendar"]
-)
-
+try:
+    credentials = Credentials(
+        token=auth.access_token,
+        refresh_token=auth.refresh_token,
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=secrets["client_id"],
+        client_secret=secrets["client_secret"],
+        scopes=["https://www.googleapis.com/auth/calendar"]
+    )
+except Exception as e:
+    print("Erro ao criar credenciais:", e)
 
