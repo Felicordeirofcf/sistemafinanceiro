@@ -6,7 +6,7 @@ from src.models.transaction import Transaction
 from flask_mail import Mail, Message
 import os
 
-alerts_bp = Blueprint(\'alerts\', __name__, url_prefix=\'/alerts\')
+alerts_bp = Blueprint('alerts', __name__, url_prefix='/alerts')
 
 # Configuração do Flask-Mail
 mail = Mail()
