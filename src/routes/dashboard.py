@@ -53,8 +53,8 @@ def index():
     FROM transactions
 """)
 years_data = db_session.execute(query).fetchall()
-    
-    available_years = set(year[0] for year in years_data if year[0])
+
+available_years = set(year[0] for year in years_data if year[0])
     
     # Adiciona o ano atual se não estiver na lista
     current_year = now.year
