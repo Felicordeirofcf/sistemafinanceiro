@@ -33,33 +33,54 @@
                         {% endwith %}
                         
                         <h4 class="text-center mb-4">Criar Nova Conta</h4>
-                        <form method="POST" action="{{ url_for('auth.register') }}">
+                        <form method="POST" action="{{ url_for('auth.register') }}" autocomplete="on">
                             <div class="mb-3">
                                 <label for="username" class="form-label">Nome de Usuário</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                                    <input type="text"
+                                           class="form-control"
+                                           id="username"
+                                           name="username"
+                                           required
+                                           autocomplete="username"
+                                           autofocus>
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="email" class="form-label">E-mail</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                    <input type="email" class="form-control" id="email" name="email" required>
+                                    <input type="email"
+                                           class="form-control"
+                                           id="email"
+                                           name="email"
+                                           required
+                                           autocomplete="email">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="password" class="form-label">Senha</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <input type="password"
+                                           class="form-control"
+                                           id="password"
+                                           name="password"
+                                           required
+                                           autocomplete="new-password">
                                 </div>
                             </div>
                             <div class="mb-3">
                                 <label for="password_confirm" class="form-label">Confirmar Senha</label>
                                 <div class="input-group">
                                     <span class="input-group-text"><i class="fas fa-lock"></i></span>
-                                    <input type="password" class="form-control" id="password_confirm" name="password_confirm" required>
+                                    <input type="password"
+                                           class="form-control"
+                                           id="password_confirm"
+                                           name="password_confirm"
+                                           required
+                                           autocomplete="new-password">
                                 </div>
                             </div>
                             <div class="d-grid">
