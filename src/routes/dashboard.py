@@ -18,24 +18,22 @@ dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 @login_required
 def index():
     """Rota principal do dashboard"""
+    # Obtém o mês e ano atuais ou os selecionados via parâmetros
     now = datetime.now()
-
-    # Proteção contra valores inválidos de mês e ano na query string
     try:
         selected_month = int(request.args.get("mes", now.month))
-        selected_year = int(request.args.get("ano", now.year))
     except (ValueError, TypeError):
         selected_month = now.month
+
+    try:
+        selected_year = int(request.args.get("ano", now.year))
+    except (ValueError, TypeError):
         selected_year = now.year
-
-    # Garante que o mês esteja entre 1 e 12
-    if not (1 <= selected_month <= 12):
-        selected_month = now.month
-
+    
     # Obtém as transações do mês selecionado
     start_date = f"{selected_year}-{selected_month:02d}-01"
-
-    # Calcula o primeiro dia do próximo mês
+    
+    # Calcula o último dia do mês
     if selected_month == 12:
         end_date = f"{selected_year + 1}-01-01"
     else:
@@ -55,20 +53,21 @@ def index():
     total_despesas_pendentes = total_despesas - total_despesas_pagas
     saldo_mes = total_receitas - total_despesas_pagas
     
-    # Obtém os anos disponíveis para o filtro - CORRIGIDO para SQLAlchemy 2.0+
+    # Obtém os anos disponíveis para o filtro - CORRIGIDO para SQLAlchemy 2.0+ e PostgreSQL
     # Consulta direta para extrair anos distintos das datas de transações
     query = text("""
         SELECT DISTINCT TO_CHAR(transactions.data, 'YYYY') AS year
         FROM transactions
+        WHERE user_id = :user_id
     """)
-    years_data = db_session.execute(query).fetchall()
-
+    years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
+    
     available_years = set(year[0] for year in years_data if year[0])
     
     # Adiciona o ano atual se não estiver na lista
     current_year = now.year
-available_years.add(current_year)
-available_years = sorted(list(available_years), reverse=True)
+    available_years.add(str(current_year)) # Convert to string to match TO_CHAR output
+    available_years = sorted(list(available_years), reverse=True)
     
     # Obtém o nome do mês
     month_names = [
@@ -170,8 +169,15 @@ def chart_data():
     """Retorna dados para os gráficos em formato JSON"""
     # Obtém o mês e ano atuais ou os selecionados via parâmetros
     now = datetime.now()
-    selected_month = int(request.args.get("mes", now.month))
-    selected_year = int(request.args.get("ano", now.year))
+    try:
+        selected_month = int(request.args.get("mes", now.month))
+    except (ValueError, TypeError):
+        selected_month = now.month
+
+    try:
+        selected_year = int(request.args.get("ano", now.year))
+    except (ValueError, TypeError):
+        selected_year = now.year
     
     # Obtém as transações do mês selecionado
     start_date = f"{selected_year}-{selected_month:02d}-01"
@@ -289,7 +295,11 @@ def search():
             query = query.filter(Transaction.descricao.ilike(f"%{termo}%"))
         
         if categoria_id:
-            query = query.filter(Transaction.categoria_id == categoria_id)
+            try:
+                categoria_id = int(categoria_id)
+                query = query.filter(Transaction.categoria_id == categoria_id)
+            except (ValueError, TypeError):
+                pass # Ignora filtro se categoria_id não for um número válido
         
         if tipo:
             query = query.filter(Transaction.tipo == tipo)
@@ -300,13 +310,19 @@ def search():
         if data_fim:
             query = query.filter(Transaction.data <= data_fim)
         
-        if valor_min_str and valor_min_str.isdigit():
-            valor_min = int(valor_min_str)
-            query = query.filter(Transaction.valor >= valor_min)
+        if valor_min_str and valor_min_str.replace(".", "").replace(",", "").isdigit(): # Verifica se é um número antes de converter
+            try:
+                valor_min = float(valor_min_str.replace(",", ".")) # Converte para float para valores monetários
+                query = query.filter(Transaction.valor >= valor_min)
+            except (ValueError, TypeError):
+                pass # Ignora filtro se valor_min não for um número válido
         
-        if valor_max_str and valor_max_str.isdigit():
-            valor_max = int(valor_max_str)
-            query = query.filter(Transaction.valor <= valor_max)
+        if valor_max_str and valor_max_str.replace(".", "").replace(",", "").isdigit(): # Verifica se é um número antes de converter
+            try:
+                valor_max = float(valor_max_str.replace(",", ".")) # Converte para float para valores monetários
+                query = query.filter(Transaction.valor <= valor_max)
+            except (ValueError, TypeError):
+                pass # Ignora filtro se valor_max não for um número válido
         
         if status:
             if status == "pago":
@@ -345,5 +361,6 @@ def search():
     
     # Se for GET, redireciona para o dashboard
     return redirect(url_for("dashboard.index"))
+
 
 
