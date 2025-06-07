@@ -3,56 +3,59 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 import os
 
-print("DEBUG: Iniciando src/models/__init__.py")
+print("[INIT] Iniciando src/models/__init__.py")
 
-# Carrega DATABASE_URL do arquivo de configuração
-from src.config import DATABASE_URL
+# Carrega a URL do banco de dados
+try:
+    from src.config import DATABASE_URL
+except ImportError:
+    raise ImportError("[ERRO] Não foi possível importar DATABASE_URL de src.config")
 
-# Verifica se a variável de ambiente está definida
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL não está definida. Configure-a no Railway ou no .env.")
+# Verifica se DATABASE_URL está definida corretamente
+if not DATABASE_URL or not isinstance(DATABASE_URL, str):
+    raise ValueError("[ERRO] DATABASE_URL não está definida. Configure-a corretamente no Railway ou arquivo .env.")
 
-print(f"DEBUG: Usando DATABASE_URL: {DATABASE_URL}")
+print(f"[INIT] Usando DATABASE_URL: {DATABASE_URL}")
 
-# Criação do engine SQLAlchemy com echo=True para log detalhado
+# Criação do engine SQLAlchemy com log detalhado (echo=True)
 try:
     engine = create_engine(DATABASE_URL, echo=True, future=True)
-    print("DEBUG: Engine do SQLAlchemy criada com sucesso.")
+    print("[INIT] Engine SQLAlchemy criado com sucesso.")
 except Exception as e:
-    print(f"ERROR: Falha ao criar engine: {e}")
+    print(f"[ERRO] Falha ao criar engine: {e}")
     raise
 
-# Criação da sessão do banco
-db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+# Criação da sessão de banco de dados
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+db_session = scoped_session(SessionLocal)
 
 # Criação da base declarativa
 Base = declarative_base()
 Base.query = db_session.query_property()
 
-# Função de teste de conexão segura
+# Testa conexão com o banco de dados
 def test_connection():
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-            print("DEBUG: Conexão com banco estabelecida com sucesso.")
+            print("[INIT] Conexão com o banco de dados estabelecida com sucesso.")
     except Exception as e:
-        print(f"ERROR: Falha ao conectar ao banco: {e}")
+        print(f"[ERRO] Falha ao conectar ao banco de dados: {e}")
         raise
 
 # Inicializa o banco de dados criando as tabelas
 def init_db():
-    print("DEBUG: Iniciando init_db()")
+    print("[INIT] Iniciando criação de tabelas com init_db()")
+    # Importa os modelos para que o SQLAlchemy reconheça as tabelas
     import src.models.user
     import src.models.transaction
     import src.models.category
     try:
         Base.metadata.create_all(bind=engine)
-        print("DEBUG: Tabelas criadas com sucesso.")
+        print("[INIT] Tabelas criadas com sucesso.")
     except Exception as e:
-        print(f"ERROR: Falha na criação das tabelas: {e}")
+        print(f"[ERRO] Falha ao criar as tabelas: {e}")
         raise
 
-# Executa o teste de conexão ao carregar o módulo
+# Executa teste de conexão ao carregar o módulo
 test_connection()
-
-
