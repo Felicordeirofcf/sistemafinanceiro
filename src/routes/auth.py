@@ -74,6 +74,7 @@ def login_google():
 @auth_bp.route("/google/callback")
 def google_callback():
     try:
+        print("[GOOGLE_CALLBACK] Iniciando callback")
         state = session.get('state')
 
         flow = Flow.from_client_config(
@@ -101,29 +102,30 @@ def google_callback():
             GOOGLE_CLIENT_ID
         )
 
+        print("[GOOGLE_CALLBACK] Token recebido com sucesso.")
+        print("[GOOGLE_CALLBACK] id_info:", id_info)
+
         email = id_info['email']
         name = id_info.get('name', 'Usuário Google')
 
         user = User.query.filter_by(email=email).first()
         if not user:
-            # Cria usuário com senha em branco (gera um hash mesmo vazio)
-            user = User(username=name, email=email, password="")
+            user = User(username=name, email=email, password=None)
             db_session.add(user)
             db_session.commit()
-            print(f"[GOOGLE] Novo usuário criado: {user.username} (ID: {user.id})")
+            print(f"[GOOGLE_CALLBACK] Novo usuário criado: {user.username}")
         else:
-            print(f"[GOOGLE] Usuário já existente: {user.username} (ID: {user.id})")
+            print(f"[GOOGLE_CALLBACK] Usuário já existente: {user.username}")
 
         login_user(user)
-        print(f"[GOOGLE] Login realizado com sucesso: {user.username}")
+        print(f"[GOOGLE_CALLBACK] Login efetuado: {user.username}")
         flash("Login com Google realizado com sucesso!", "success")
         return redirect(url_for("dashboard.index"))
 
     except Exception as e:
-        print(f"[GOOGLE] Erro ao autenticar com Google: {e}")
+        print(f"[GOOGLE_CALLBACK] Erro: {e}")
         flash(f"Erro ao autenticar com Google: {e}", "danger")
         return redirect(url_for("auth.login"))
-
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
