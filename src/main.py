@@ -94,7 +94,7 @@ def index():
         return redirect(url_for("dashboard.index"))
     return redirect(url_for("auth.login"))
 
-# Finalização da sessão
+# Finalizasção da sessão
 @app.teardown_appcontext
 def shutdown_session(exception=None):
     db_session.remove()
