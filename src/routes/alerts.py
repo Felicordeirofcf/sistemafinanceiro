@@ -9,122 +9,129 @@ import os
 
 alerts_bp = Blueprint("alerts", __name__, url_prefix="/alerts")
 
-# Função utilitária para envio de e-mails
-def enviar_email(destinatario, assunto, corpo):
+# 🔒 Função para envio de e-mails com fallback seguro
+def enviar_email(destinatario, assunto, corpo_html):
     msg = EmailMessage()
+    email_user = os.getenv("EMAIL_USER", "seu_email@gmail.com")
+    email_pass = os.getenv("EMAIL_PASS", "sua_senha_de_app")
+
     msg["Subject"] = assunto
-    msg["From"] = os.getenv("EMAIL_USER", "seu_email@gmail.com")  # fallback se variável não existir
+    msg["From"] = email_user
     msg["To"] = destinatario
-    msg.set_content(corpo, subtype='html')
+    msg.set_content("Seu cliente de e-mail não suporta HTML.")
+    msg.add_alternative(corpo_html, subtype="html")
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-            smtp.login(
-                os.getenv("EMAIL_USER", "seu_email@gmail.com"),
-                os.getenv("EMAIL_PASS", "sua_senha_de_app")
-            )
+            smtp.login(email_user, email_pass)
             smtp.send_message(msg)
         return True
     except Exception as e:
-        print(f"Erro ao enviar e-mail: {e}")
+        print(f"[ERRO] Falha ao enviar e-mail: {e}")
         return False
 
-# Rota para verificar despesas próximas do vencimento (usada pelo frontend)
+
+# 📅 Rota que retorna despesas com vencimento nos próximos 7 dias
 @alerts_bp.route("/check")
 @login_required
 def check_alerts():
     try:
-        today = datetime.now().date()
-        seven_days_from_now = today + timedelta(days=7)
+        hoje = datetime.now().date()
+        limite = hoje + timedelta(days=7)
 
-        upcoming_due = Transaction.query.filter(
+        despesas = Transaction.query.filter(
             Transaction.user_id == current_user.id,
             Transaction.tipo == "despesa",
             Transaction.pago == False,
-            Transaction.vencimento >= today,
-            Transaction.vencimento <= seven_days_from_now
+            Transaction.vencimento >= hoje,
+            Transaction.vencimento <= limite
         ).all()
 
-        transactions_list = [t.to_dict() for t in upcoming_due]
-
         return jsonify({
-            "alerts": transactions_list,
-            "count": len(transactions_list)
+            "alerts": [t.to_dict() for t in despesas],
+            "count": len(despesas)
         })
     except Exception as e:
-        print(f"Error in check_alerts: {e}")
-        return jsonify({"error": "Internal Server Error", "message": str(e)}), 500
+        print(f"[ERRO] check_alerts: {e}")
+        return jsonify({"error": "Erro interno no servidor", "message": str(e)}), 500
 
-# Rota para envio de e-mail com as despesas próximas do vencimento
+
+# 📧 Rota que envia e-mail com as despesas próximas do vencimento
 @alerts_bp.route("/send-email-alerts")
 @login_required
 def send_email_alerts():
     try:
-        today = datetime.now().date()
-        seven_days_from_now = today + timedelta(days=7)
+        hoje = datetime.now().date()
+        limite = hoje + timedelta(days=7)
 
-        upcoming_due = Transaction.query.filter(
+        despesas = Transaction.query.filter(
             Transaction.user_id == current_user.id,
             Transaction.tipo == "despesa",
             Transaction.pago == False,
-            Transaction.vencimento >= today,
-            Transaction.vencimento <= seven_days_from_now
+            Transaction.vencimento >= hoje,
+            Transaction.vencimento <= limite
         ).all()
 
-        if not upcoming_due:
+        if not despesas:
             flash("Não há despesas próximas do vencimento para notificar.", "info")
             return redirect(url_for("dashboard.index"))
 
-        total_value = sum(t.valor for t in upcoming_due)
-        num_expenses = len(upcoming_due)
-
-        email_subject = "Alerta de Despesas - Sistema Financeiro"
-        email_body = f"""
-        <h2>Alerta de Despesas Próximas do Vencimento</h2>
-        <p>Você tem {num_expenses} despesa(s) que vence(m) nos próximos dias. Valor total: R$ {total_value:.2f}.</p>
-        <p>As seguintes despesas estão próximas do vencimento:</p>
-        <table border='1' cellpadding='5' style='border-collapse: collapse;'>
-            <tr>
-                <th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Categoria</th>
-            </tr>
+        total = sum(t.valor for t in despesas)
+        corpo = f"""
+        <h2>🔔 Despesas a Vencer</h2>
+        <p>Você tem <strong>{len(despesas)}</strong> despesa(s) próximas do vencimento.</p>
+        <p><strong>Total:</strong> R$ {total:.2f}</p>
+        <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>Descrição</th>
+                    <th>Valor (R$)</th>
+                    <th>Vencimento</th>
+                    <th>Categoria</th>
+                </tr>
+            </thead>
+            <tbody>
         """
 
-        for transaction in upcoming_due:
-            vencimento = transaction.vencimento.strftime("%d/%m/%Y")
-            categoria = transaction.categoria.nome if transaction.categoria else "Sem categoria"
-            email_body += f"""
-            <tr>
-                <td>{transaction.descricao}</td>
-                <td>R$ {transaction.valor:.2f}</td>
-                <td>{vencimento}</td>
-                <td>{categoria}</td>
-            </tr>
+        for t in despesas:
+            venc = t.vencimento.strftime("%d/%m/%Y")
+            cat = t.categoria.nome if t.categoria else "Sem categoria"
+            corpo += f"""
+                <tr>
+                    <td>{t.descricao}</td>
+                    <td>{t.valor:.2f}</td>
+                    <td>{venc}</td>
+                    <td>{cat}</td>
+                </tr>
             """
 
-        email_body += "</table><p>Acesse o sistema para mais detalhes.</p>"
+        corpo += "</tbody></table><p>Acesse o sistema para mais detalhes.</p>"
 
-        if enviar_email(current_user.email, email_subject, email_body):
+        if enviar_email(current_user.email, "📬 Alerta de Despesas", corpo):
             flash("E-mail de alerta enviado com sucesso!", "success")
         else:
-            flash("Erro ao enviar e-mail de alerta. Verifique as configurações de e-mail.", "danger")
+            flash("Erro ao enviar e-mail. Verifique as credenciais ou permissões.", "danger")
 
     except Exception as e:
+        print(f"[ERRO] send_email_alerts: {e}")
         flash(f"Erro ao enviar e-mail: {str(e)}", "danger")
 
     return redirect(url_for("dashboard.index"))
 
-# Rota usada para descartar o alerta no frontend (via modal)
+
+# ❌ Endpoint para "descartar" alerta no frontend (usado para UX)
 @alerts_bp.route("/dismiss/<int:transaction_id>", methods=["POST"])
 @login_required
 def dismiss_alert(transaction_id):
     try:
         transaction = Transaction.query.filter_by(id=transaction_id, user_id=current_user.id).first()
 
-        if transaction:
-            # Aqui você poderia marcar como "notificado" se tiver um campo para isso
-            return jsonify({"success": True})
+        if not transaction:
+            return jsonify({"success": False, "message": "Transação não encontrada"}), 404
 
-        return jsonify({"success": False, "message": "Transação não encontrada"}), 404
+        # Aqui futuramente você pode marcar como "alertado" ou "ignorado"
+        return jsonify({"success": True})
+
     except Exception as e:
-        print(f"Error in dismiss_alert: {e}")
+        print(f"[ERRO] dismiss_alert: {e}")
         return jsonify({"success": False, "message": str(e)}), 500

@@ -1,15 +1,14 @@
 import os
 
+# Carrega do .env (se estiver rodando localmente)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # Ignora se não estiver disponível
+
 # Configurações do banco de dados
-# DATABASE_URL = 'postgresql://postgres:WOBJFhAuvKGKURZOInheKDQWPQwYDgxz@postgres.railway.internal:5432/railway'
-DATABASE_URL = 'postgresql://postgres:WOBJFhAuvKGKURZOInheKDQWPQwYDgxz@nozomi.proxy.rlwy.net:37065/railway'
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Configurações do Google OAuth
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
-
-# Chave secreta para sessões do Flask
-SECRET_KEY = 'bc132d7da14069340f332a6d814071b57cee8b9a3322a516'
-
-
+# Chave secreta da aplicação Flask
+SECRET_KEY = os.getenv("SECRET_KEY", "fallback-secret-key")
