@@ -14,7 +14,6 @@ transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions"
 @transactions_bp.route("/add", methods=["POST"])
 @login_required
 def add():
-    """Adiciona uma nova transação"""
     descricao = request.form.get("descricao")
     valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
     valor = int(valor_str) if valor_str.isdigit() else 0
@@ -73,7 +72,6 @@ def add():
 @transactions_bp.route("/delete/<int:id>", methods=["POST"])
 @login_required
 def delete(id):
-    """Exclui uma transação"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
     if not transaction:
         return jsonify({"success": False, "message": "Transação não encontrada."}), 404
@@ -107,7 +105,6 @@ def delete(id):
 @transactions_bp.route("/edit/<int:id>", methods=["POST"])
 @login_required
 def edit(id):
-    """Edita uma transação existente"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
     if not transaction:
         flash("Transação não encontrada.", "danger")
@@ -197,7 +194,6 @@ def edit(id):
 @transactions_bp.route("/toggle_status/<int:id>")
 @login_required
 def toggle_status(id):
-    """Alterna o status de pagamento de uma transação"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
 
     if not transaction:
@@ -216,7 +212,6 @@ def toggle_status(id):
 @transactions_bp.route("/recurring")
 @login_required
 def recurring():
-    """Exibe todas as despesas recorrentes"""
     recurring_transactions = Transaction.query.filter_by(
         user_id=current_user.id,
         is_recurring=True,
@@ -234,7 +229,6 @@ def recurring():
 @transactions_bp.route("/generate_recurring")
 @login_required
 def generate_recurring():
-    """Gera as próximas ocorrências de todas as despesas recorrentes"""
     recurring_transactions = Transaction.query.filter_by(
         user_id=current_user.id,
         is_recurring=True,
@@ -249,7 +243,6 @@ def generate_recurring():
     return redirect(url_for("transactions.recurring"))
 
 def generate_recurring_transactions(transaction, limit=12):
-    """Gera as próximas ocorrências de uma despesa recorrente"""
     if not transaction.is_recurring or transaction.tipo != "despesa":
         return 0
 
@@ -305,6 +298,5 @@ def generate_recurring_transactions(transaction, limit=12):
 @transactions_bp.route("/modal")
 @login_required
 def transaction_modal():
-    """Carrega o modal de transação com categorias do usuário"""
     categories = Category.query.filter_by(user_id=current_user.id).all()
     return render_template("components/transaction_modal.html", categories=categories)
