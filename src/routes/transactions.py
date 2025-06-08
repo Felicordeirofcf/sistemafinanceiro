@@ -11,63 +11,39 @@ transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions"
 
 # ----------------------------- ADICIONAR TRANSAÇÃO -----------------------------
 
-@transactions_bp.route("/add", methods=["POST"])
+@transactions_bp.route("/delete/<int:id>", methods=["POST"])
 @login_required
-def add():
-    """Adiciona uma nova transação"""
-    descricao = request.form.get("descricao")
-    valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
-    valor = int(valor_str) if valor_str.isdigit() else 0
-    tipo = request.form.get("tipo")
-    data_str = request.form.get("data")
-    vencimento_str = request.form.get("vencimento") if tipo == "despesa" else None
-    categoria_id = request.form.get("categoria_id")
-    observacoes = request.form.get("observacoes", "")
+def delete(id):
+    """Exclui uma transação"""
+    transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
 
-    # Converter strings de data para objetos date
-    try:
-        data = datetime.strptime(data_str, "%Y-%m-%d").date() if data_str else None
-        vencimento = datetime.strptime(vencimento_str, "%Y-%m-%d").date() if vencimento_str else None
-    except ValueError:
-        flash("Formato de data inválido.", "danger")
-        return redirect(url_for("dashboard.index"))
+    if not transaction:
+        return jsonify({"success": False, "message": "Transação não encontrada."}), 404
 
-    is_recurring = request.form.get("is_recurring") == "on"
-    recurrence_frequency = request.form.get("recurrence_frequency")
-    recurrence_end_date_str = request.form.get("recurrence_end_date")
-    
-    try:
-        recurrence_end_date = datetime.strptime(recurrence_end_date_str, "%Y-%m-%d").date() if recurrence_end_date_str else None
-    except ValueError:
-        recurrence_end_date = None
+    is_recurring = transaction.is_recurring or transaction.parent_transaction_id
+    delete_all_future = request.json.get("delete_all_future") if request.is_json else False
 
-    if not descricao or not valor or not tipo or not data:
-        flash("Todos os campos obrigatórios devem ser preenchidos.", "danger")
-        return redirect(url_for("dashboard.index"))
+    if is_recurring and delete_all_future:
+        parent_id = transaction.parent_transaction_id if transaction.parent_transaction_id else transaction.id
 
-    transaction = Transaction(
-        user_id=current_user.id,
-        descricao=descricao,
-        valor=valor,
-        tipo=tipo,
-        data=data,
-        vencimento=vencimento,
-        pago=False if tipo == "despesa" else True,
-        categoria_id=categoria_id if categoria_id else None,
-        observacoes=observacoes,
-        is_recurring=is_recurring,
-        recurrence_frequency=recurrence_frequency if is_recurring else None,
-        recurrence_start_date=data if is_recurring else None,
-        recurrence_end_date=recurrence_end_date if is_recurring and recurrence_end_date else None
-    )
+        today = datetime.now().date()
+        future_transactions = Transaction.query.filter(
+            Transaction.parent_transaction_id == parent_id,
+            Transaction.data >= today
+        ).all()
 
-    db_session.add(transaction)
-    db_session.commit()
+        for future in future_transactions:
+            db_session.delete(future)
 
-    if is_recurring and tipo == "despesa":
-        generate_recurring_transactions(transaction)
+        if transaction.id == parent_id:
+            db_session.delete(transaction)
 
-    flash("Transação adicionada com sucesso!", "success")
+        db_session.commit()
+        return jsonify({"success": True, "message": "Todas as ocorrências futuras foram excluídas com sucesso!"})
+    else:
+        db_session.delete(transaction)
+        db_session.commit()
+        return jsonify({"success": True, "message": "Transação excluída com sucesso!"}
     return redirect(url_for("dashboard.index"))
 
 # ----------------------------- EDITAR TRANSAÇÃO -----------------------------

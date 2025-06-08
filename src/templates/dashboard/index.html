@@ -481,6 +481,51 @@
     <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.5/dist/sweetalert2.all.min.js"></script>
     <script src="{{ url_for("static", filename="js/dashboard.js") }}"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Lógica de exclusão com SweetAlert + fetch POST
+  document.querySelectorAll(".delete-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      const id = button.getAttribute("data-id");
+
+      Swal.fire({
+        title: "Tem certeza?",
+        text: "Essa transação será excluída permanentemente.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Sim, excluir!",
+        cancelButtonText: "Cancelar"
+      }).then(result => {
+        if (result.isConfirmed) {
+          fetch(`/transactions/delete/${id}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({})
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              Swal.fire("Excluído!", data.message, "success").then(() => location.reload());
+            } else {
+              Swal.fire("Erro!", data.message || "Erro ao excluir.", "error");
+            }
+          })
+          .catch(() => {
+            Swal.fire("Erro!", "Falha na comunicação com o servidor.", "error");
+          });
+        }
+      });
+    });
+  });
+});
+</script>
+
+
 </body>
 </html>
 
