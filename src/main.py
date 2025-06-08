@@ -15,10 +15,11 @@ except ImportError:
     print("DEBUG: python-dotenv não encontrado. Prosseguindo sem carregar .env")
 
 # Importação dos módulos e rotas
-from models import db_session, init_db
-from models.user import User
-from models.transaction import Transaction
-from models.category import Category
+from src.models import db_session, init_db
+from src.models.user import User
+from src.models.transaction import Transaction
+from src.models.category import Category
+
 
 from routes.auth import auth_bp
 from routes.transactions import transactions_bp
