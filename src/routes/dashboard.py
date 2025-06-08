@@ -165,8 +165,6 @@ def chart_data():
         ]
     }
 
-    return jsonify(bar_chart_data)
-
     fixed_expenses = sum(t.valor for t in transactions if t.tipo == "despesa" and (t.is_recurring or t.parent_transaction_id))
     variable_expenses = sum(t.valor for t in transactions if t.tipo == "despesa" and not (t.is_recurring or t.parent_transaction_id))
 

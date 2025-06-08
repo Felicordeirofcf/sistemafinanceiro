@@ -16,8 +16,20 @@ transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions"
 def add():
     try:
         descricao = request.form.get("descricao")
-        valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
-        valor = int(valor_str) if valor_str.isdigit() else 0
+        valor_str = request.form.get("valor", "0")
+        
+        # Processar valor no formato brasileiro (R$ 100,59 ou 100,59)
+        if valor_str:
+            # Remover símbolos de moeda e espaços
+            valor_str = valor_str.replace("R$", "").replace(" ", "").strip()
+            # Substituir vírgula por ponto para conversão
+            valor_str = valor_str.replace(",", ".")
+            try:
+                valor = float(valor_str) if valor_str else 0
+            except ValueError:
+                valor = 0
+        else:
+            valor = 0
         tipo = request.form.get("tipo")
         data_str = request.form.get("data")
         vencimento_str = request.form.get("vencimento") if tipo == "despesa" else None
@@ -228,21 +240,40 @@ def get_transaction(id):
     if not transaction:
         return jsonify({"success": False, "message": "Transação não encontrada."}), 404
 
-    transaction_data = {
-        "id": transaction.id,
-        "descricao": transaction.descricao,
-        "valor": transaction.valor,
-        "tipo": transaction.tipo,
-        "data": transaction.data.strftime("%Y-%m-%d"),
-        "vencimento": transaction.vencimento.strftime("%Y-%m-%d") if transaction.vencimento else None,
-        "pago": transaction.pago,
-        "categoria_id": transaction.categoria_id,
-        "observacoes": transaction.observacoes,
-        "is_recurring": transaction.is_recurring,
-        "frequencia": transaction.recurrence_frequency
-    }
+    try:
+        # Tratamento seguro de datas
+        data_str = None
+        if transaction.data:
+            if isinstance(transaction.data, str):
+                data_str = transaction.data
+            else:
+                data_str = transaction.data.strftime("%Y-%m-%d")
+        
+        vencimento_str = None
+        if transaction.vencimento:
+            if isinstance(transaction.vencimento, str):
+                vencimento_str = transaction.vencimento
+            else:
+                vencimento_str = transaction.vencimento.strftime("%Y-%m-%d")
 
-    return jsonify({"success": True, "transaction": transaction_data})
+        transaction_data = {
+            "id": transaction.id,
+            "descricao": transaction.descricao or "",
+            "valor": float(transaction.valor) if transaction.valor else 0,
+            "tipo": transaction.tipo or "receita",
+            "data": data_str,
+            "vencimento": vencimento_str,
+            "pago": bool(transaction.pago),
+            "categoria_id": transaction.categoria_id,
+            "observacoes": transaction.observacoes or "",
+            "is_recurring": bool(transaction.is_recurring),
+            "frequencia": transaction.recurrence_frequency or "mensal"
+        }
+
+        return jsonify({"success": True, "transaction": transaction_data})
+    
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Erro ao processar dados da transação: {str(e)}"}), 500
 
 
 # ----------------------------- TRANSAÇÕES RECORRENTES -----------------------------
@@ -282,7 +313,17 @@ def generate_recurring():
     return redirect(url_for("transactions.recurring"))
 
 
-def generate_recurring_transactions(transaction, limit=12):
+def generate_recurring_transactions(transaction, months_ahead=12):
+    """
+    Gera transações recorrentes para os próximos meses especificados.
+    
+    Args:
+        transaction: Transação base para gerar as recorrências
+        months_ahead: Número de meses à frente para gerar (padrão: 12)
+    
+    Returns:
+        int: Número de transações geradas
+    """
     if not transaction.is_recurring or transaction.tipo != "despesa":
         return 0
 
@@ -314,13 +355,19 @@ def generate_recurring_transactions(transaction, limit=12):
 
     count = 0
     current_date = datetime.combine(start_date, datetime.min.time())
+    
+    # Calcular data limite (12 meses à frente ou data final definida pelo usuário)
+    max_date = datetime.now().date() + relativedelta(months=months_ahead)
+    if end_date and end_date < max_date:
+        max_date = end_date
 
-    for _ in range(limit):
+    # Gerar transações até atingir a data limite
+    while True:
         current_date += relativedelta(months=frequency_months)
         next_date = current_date.date()
         
         # Verificar se a data limite foi atingida
-        if end_date and next_date > end_date:
+        if next_date > max_date:
             break
 
         # Verificar se já existe uma transação para esta data
@@ -334,12 +381,15 @@ def generate_recurring_transactions(transaction, limit=12):
             valor=transaction.valor,
             tipo=transaction.tipo,
             data=next_date,
-            vencimento=next_date,
-            pago=False,
+            vencimento=next_date,  # Para despesas recorrentes, vencimento = data
+            pago=False,  # Sempre criar como não pago
             categoria_id=transaction.categoria_id,
             observacoes=transaction.observacoes,
             parent_transaction_id=transaction.id,
-            is_recurring=False  # Transações filhas não são recorrentes
+            is_recurring=False,  # Transações filhas não são recorrentes
+            recurrence_frequency=None,
+            recurrence_start_date=None,
+            recurrence_end_date=None
         )
 
         db_session.add(new_transaction)
@@ -347,7 +397,7 @@ def generate_recurring_transactions(transaction, limit=12):
 
     if count > 0:
         db_session.commit()
-    
+
     return count
 
 
