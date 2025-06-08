@@ -43,7 +43,7 @@ def index():
     total_despesas = sum(t.valor for t in transactions if t.tipo == "despesa")
     total_despesas_pagas = sum(t.valor for t in transactions if t.tipo == "despesa" and t.pago)
     total_despesas_pendentes = total_despesas - total_despesas_pagas
-    saldo_mes = total_receitas - total_despesas_pagas
+    saldo = total_receitas - total_despesas_pagas
 
     query = text("""
         SELECT DISTINCT EXTRACT(YEAR FROM transactions.data::DATE) AS year
@@ -76,7 +76,7 @@ def index():
         "total_despesas": total_despesas,
         "total_despesas_pagas": total_despesas_pagas,
         "total_despesas_pendentes": total_despesas_pendentes,
-        "saldo_mes": saldo_mes,
+        "saldo": saldo,
         "selected_month": selected_month,
         "selected_year": selected_year,
         "month_name": month_name,
