@@ -43,7 +43,7 @@ def delete(id):
     else:
         db_session.delete(transaction)
         db_session.commit()
-        return jsonify({"success": True, "message": "Transação excluída com sucesso!"}
+        return jsonify({"success": True, "message": "Transação excluída com sucesso!"})
     return redirect(url_for("dashboard.index"))
 
 # ----------------------------- EDITAR TRANSAÇÃO -----------------------------
