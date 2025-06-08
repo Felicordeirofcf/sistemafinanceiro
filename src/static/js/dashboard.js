@@ -125,40 +125,61 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Função para atualizar a UI do dashboard
     function updateDashboardUI(data) {
-        document.getElementById("total-receitas").textContent = formatCurrency(data.total_receitas);
-        document.getElementById("total-despesas").textContent = formatCurrency(data.total_despesas);
-        document.getElementById("total-pendencias").textContent = formatCurrency(data.total_pendencias);
-        document.getElementById("saldo-atual").textContent = formatCurrency(data.saldo_atual);
+        // Verificar e atualizar elementos dos cards de resumo
+        const totalReceitas = document.getElementById("total-receitas");
+        if (totalReceitas) {
+            totalReceitas.textContent = formatCurrency(data.total_receitas);
+        }
+        
+        const totalDespesas = document.getElementById("total-despesas");
+        if (totalDespesas) {
+            totalDespesas.textContent = formatCurrency(data.total_despesas);
+        }
+        
+        const totalPendencias = document.getElementById("total-pendencias");
+        if (totalPendencias) {
+            totalPendencias.textContent = formatCurrency(data.total_pendencias);
+        }
+        
+        const saldoAtual = document.getElementById("saldo-atual");
+        if (saldoAtual) {
+            saldoAtual.textContent = formatCurrency(data.saldo_atual);
+        }
 
         // Atualizar tabela de transações
-        const transactionsTableBody = document.getElementById("transactions-table-body");
-        transactionsTableBody.innerHTML = ""; // Limpar tabela existente
-        data.transactions.forEach(transaction => {
-            const row = transactionsTableBody.insertRow();
-            row.innerHTML = `
-                <td>${transaction.data}</td>
-                <td>${transaction.descricao}</td>
-                <td>${transaction.categoria}</td>
-                <td class="currency-value">${formatCurrency(transaction.valor)}</td>
-                <td>${transaction.tipo === "receita" ? "Receita" : "Despesa"}</td>
-                <td>${transaction.status}</td>
-                <td>
-                    <button class="btn btn-sm btn-primary edit-btn" data-id="${transaction.id}" data-type="${transaction.tipo}">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn btn-sm btn-danger delete-btn" data-id="${transaction.id}" data-type="${transaction.tipo}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    ${transaction.tipo === "despesa" && transaction.status === "Pendente" ?
-                        `<button class="btn btn-sm btn-success mark-paid-btn" data-id="${transaction.id}">
-                            <i class="fas fa-check"></i>
-                        </button>` : ""}
-                </td>
-            `;
-        });
+        const transactionsTableBody = document.getElementById("transactionsTableBody");
+        if (transactionsTableBody) {
+            transactionsTableBody.innerHTML = ""; // Limpar tabela existente
+            data.transactions.forEach(transaction => {
+                const row = transactionsTableBody.insertRow();
+                row.innerHTML = `
+                    <td>${transaction.data}</td>
+                    <td>${transaction.descricao}</td>
+                    <td>${transaction.categoria}</td>
+                    <td class="currency-value">${formatCurrency(transaction.valor)}</td>
+                    <td>${transaction.tipo === "receita" ? "Receita" : "Despesa"}</td>
+                    <td>${transaction.status}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary edit-btn" data-id="${transaction.id}" data-type="${transaction.tipo}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-danger delete-btn" data-id="${transaction.id}" data-type="${transaction.tipo}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        ${transaction.tipo === "despesa" && transaction.status === "Pendente" ?
+                            `<button class="btn btn-sm btn-success mark-paid-btn" data-id="${transaction.id}">
+                                <i class="fas fa-check"></i>
+                            </button>` : ""}
+                    </td>
+                `;
+            });
+        }
 
         // Atualizar título do período
-        document.getElementById("current-month-year").textContent = data.current_month_year;
+        const currentMonthYear = document.getElementById("current-month-year");
+        if (currentMonthYear) {
+            currentMonthYear.textContent = data.current_month_year;
+        }
     }
 
     // Variáveis globais para os gráficos

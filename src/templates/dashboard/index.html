@@ -354,7 +354,7 @@
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="transactionsTableBody">
                                     {% if transactions %}
                                         {% for transaction in transactions %}
                                             <tr class="{% if transaction.tipo == 'receita' %}table-success{% elif transaction.tipo == 'despesa' and transaction.pago %}table-info{% elif transaction.tipo == 'despesa' and not transaction.pago %}table-warning{% endif %}">
