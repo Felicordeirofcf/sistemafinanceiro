@@ -25,7 +25,7 @@ def add():
             # Substituir vírgula por ponto para conversão
             valor_str = valor_str.replace(",", ".")
             try:
-                valor = float(valor_str) if valor_str else 0
+                valor = float(valor_str) * 100 if valor_str else 0
             except ValueError:
                 valor = 0
         else:
@@ -124,8 +124,16 @@ def edit(id):
 
     try:
         descricao = request.form.get("descricao")
-        valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
-        valor = int(valor_str) if valor_str.isdigit() else 0
+        valor_str = request.form.get("valor", "0")
+        if valor_str:
+            valor_str = valor_str.replace("R$", "").replace(" ", "").strip()
+            valor_str = valor_str.replace(",", ".")
+            try:
+                valor = float(valor_str) * 100 if valor_str else 0
+            except ValueError:
+                valor = 0
+        else:
+            valor = 0
         tipo = request.form.get("tipo")
         data_str = request.form.get("data")
         vencimento_str = request.form.get("vencimento") if tipo == "despesa" else None
