@@ -7,7 +7,7 @@ print("[INIT] Iniciando src/models/__init__.py")
 
 # Carrega a URL do banco
 try:
-    from config import DATABASE_URL
+    from src.config import DATABASE_URL
 except ImportError:
     raise ImportError("[INIT][ERRO] Não foi possível importar DATABASE_URL de config.")
 
