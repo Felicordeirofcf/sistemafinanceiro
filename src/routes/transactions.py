@@ -54,6 +54,7 @@ def add():
         db_session.add(transaction)
         db_session.commit()
 
+        # Gerar transações recorrentes imediatamente após criar a transação principal
         if is_recurring and tipo == "despesa":
             generate_recurring_transactions(transaction)
 
@@ -198,6 +199,52 @@ def toggle_status(id):
     return jsonify({"success": True, "message": f"Transação marcada como {status}."})
 
 
+# ----------------------------- MARCAR COMO PAGO -----------------------------
+
+@transactions_bp.route("/pay/<int:id>", methods=["POST"])
+@login_required
+def pay(id):
+    transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
+
+    if not transaction:
+        return jsonify({"success": False, "message": "Transação não encontrada."}), 404
+
+    if transaction.tipo != "despesa":
+        return jsonify({"success": False, "message": "Apenas despesas podem ser marcadas como pagas."}), 400
+
+    transaction.pago = True
+    db_session.commit()
+
+    return jsonify({"success": True, "message": "Despesa marcada como paga."})
+
+
+# ----------------------------- OBTER TRANSAÇÃO -----------------------------
+
+@transactions_bp.route("/get/<int:id>", methods=["GET"])
+@login_required
+def get_transaction(id):
+    transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
+
+    if not transaction:
+        return jsonify({"success": False, "message": "Transação não encontrada."}), 404
+
+    transaction_data = {
+        "id": transaction.id,
+        "descricao": transaction.descricao,
+        "valor": transaction.valor,
+        "tipo": transaction.tipo,
+        "data": transaction.data.strftime("%Y-%m-%d"),
+        "vencimento": transaction.vencimento.strftime("%Y-%m-%d") if transaction.vencimento else None,
+        "pago": transaction.pago,
+        "categoria_id": transaction.categoria_id,
+        "observacoes": transaction.observacoes,
+        "is_recurring": transaction.is_recurring,
+        "frequencia": transaction.recurrence_frequency
+    }
+
+    return jsonify({"success": True, "transaction": transaction_data})
+
+
 # ----------------------------- TRANSAÇÕES RECORRENTES -----------------------------
 
 @transactions_bp.route("/recurring")
@@ -241,10 +288,15 @@ def generate_recurring_transactions(transaction, limit=12):
 
     start_date = transaction.recurrence_start_date or transaction.data
     if isinstance(start_date, str):
-        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    elif isinstance(start_date, datetime):
+        start_date = start_date.date()
+    
     end_date = transaction.recurrence_end_date
     if isinstance(end_date, str):
-        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+    elif isinstance(end_date, datetime):
+        end_date = end_date.date()
 
     frequency_months = {
         "mensal": 1,
@@ -254,36 +306,48 @@ def generate_recurring_transactions(transaction, limit=12):
         "anual": 12
     }.get(transaction.recurrence_frequency, 1)
 
-    existing_dates = set(child.data for child in transaction.child_transactions)
+    # Buscar transações filhas existentes
+    existing_transactions = Transaction.query.filter_by(
+        parent_transaction_id=transaction.id
+    ).all()
+    existing_dates = set(t.data for t in existing_transactions)
 
     count = 0
-    current_date = start_date
+    current_date = datetime.combine(start_date, datetime.min.time())
 
     for _ in range(limit):
         current_date += relativedelta(months=frequency_months)
-        if end_date and current_date.date() > end_date:
+        next_date = current_date.date()
+        
+        # Verificar se a data limite foi atingida
+        if end_date and next_date > end_date:
             break
 
-        if current_date.date() in existing_dates:
+        # Verificar se já existe uma transação para esta data
+        if next_date in existing_dates:
             continue
 
+        # Criar nova transação recorrente
         new_transaction = Transaction(
             user_id=transaction.user_id,
             descricao=transaction.descricao,
             valor=transaction.valor,
             tipo=transaction.tipo,
-            data=current_date.date(),
-            vencimento=current_date.date(),
+            data=next_date,
+            vencimento=next_date,
             pago=False,
             categoria_id=transaction.categoria_id,
             observacoes=transaction.observacoes,
-            parent_transaction_id=transaction.id
+            parent_transaction_id=transaction.id,
+            is_recurring=False  # Transações filhas não são recorrentes
         )
 
         db_session.add(new_transaction)
         count += 1
 
-    db_session.commit()
+    if count > 0:
+        db_session.commit()
+    
     return count
 
 

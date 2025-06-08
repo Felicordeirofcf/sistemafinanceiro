@@ -76,7 +76,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
-    });
 
     // Handle delete transaction
     $(document).on('click', '.delete-btn', function() {

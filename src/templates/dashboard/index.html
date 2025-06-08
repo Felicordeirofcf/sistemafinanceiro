@@ -256,13 +256,16 @@
                                 <label class="form-check-label" for="pago">Pago</label>
                             </div>
                             <div class="mb-3 form-check" id="recorrente-group" style="display: none;">
-                                <input type="checkbox" class="form-check-input" id="recorrente" name="recorrente" value="True">
+                                <input type="checkbox" class="form-check-input" id="recorrente" name="is_recurring" value="True">
                                 <label class="form-check-label" for="recorrente">Recorrente</label>
                             </div>
                             <div class="mb-3" id="frequencia-group" style="display: none;">
                                 <label for="frequencia" class="form-label">Frequência:</label>
-                                <select class="form-select" id="frequencia" name="frequencia">
+                                <select class="form-select" id="frequencia" name="recurrence_frequency">
                                     <option value="mensal">Mensal</option>
+                                    <option value="bimestral">Bimestral</option>
+                                    <option value="trimestral">Trimestral</option>
+                                    <option value="semestral">Semestral</option>
                                     <option value="anual">Anual</option>
                                 </select>
                             </div>
@@ -380,13 +383,16 @@
                             <label class="form-check-label" for="edit-pago">Pago</label>
                         </div>
                         <div class="mb-3 form-check" id="edit-recorrente-group">
-                            <input type="checkbox" class="form-check-input" id="edit-recorrente" name="recorrente" value="True">
+                            <input type="checkbox" class="form-check-input" id="edit-recorrente" name="is_recurring" value="True">
                             <label class="form-check-label" for="edit-recorrente">Recorrente</label>
                         </div>
                         <div class="mb-3" id="edit-frequencia-group">
                             <label for="edit-frequencia" class="form-label">Frequência:</label>
-                            <select class="form-select" id="edit-frequencia" name="frequencia">
+                            <select class="form-select" id="edit-frequencia" name="recurrence_frequency">
                                 <option value="mensal">Mensal</option>
+                                <option value="bimestral">Bimestral</option>
+                                <option value="trimestral">Trimestral</option>
+                                <option value="semestral">Semestral</option>
                                 <option value="anual">Anual</option>
                             </select>
                         </div>
