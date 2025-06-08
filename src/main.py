@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 # DEBUG: Iniciando a aplicação
 print("DEBUG: Iniciando main.py")
 
-# Carrega variáveis do arquivo .env localmente (ignorado no Railway)
+# Carrega variáveis do .env localmente (ignorado no Railway)
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -14,12 +14,11 @@ try:
 except ImportError:
     print("DEBUG: python-dotenv não encontrado. Prosseguindo sem carregar .env")
 
-# Importação dos módulos e rotas
+# Importações dos modelos e rotas
 from src.models import db_session, init_db
 from src.models.user import User
 from src.models.transaction import Transaction
 from src.models.category import Category
-
 
 from src.routes.auth import auth_bp
 from src.routes.transactions import transactions_bp
@@ -32,18 +31,18 @@ print("DEBUG: Modelos e rotas importados.")
 app = Flask(__name__)
 
 # Configurações principais com variáveis de ambiente
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "supersecretkey")
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///banco.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-# ✅ Configurações de sessão seguras para ambiente HTTPS + OAuth
+# Configurações seguras de sessão
 app.config["SESSION_COOKIE_SAMESITE"] = "None"
 app.config["SESSION_COOKIE_SECURE"] = True
 app.config["REMEMBER_COOKIE_DURATION"] = timedelta(days=7)
 
 print("DEBUG: Configurações aplicadas com sucesso.")
 
-# Configuração do login
+# Gerenciador de login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
@@ -51,9 +50,9 @@ login_manager.login_message = "Por favor, faça login para acessar esta página.
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    return db_session.query(User).get(int(user_id))
 
-# Registro de rotas (blueprints)
+# Registro de blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(transactions_bp)
 app.register_blueprint(dashboard_bp)
@@ -61,7 +60,7 @@ app.register_blueprint(alerts_bp)
 
 print("DEBUG: Blueprints registrados.")
 
-# Rota raiz
+# Rota principal
 @app.route("/")
 def index():
     print(f"[ROOT] Usuário autenticado? {current_user.is_authenticated}")
@@ -83,8 +82,6 @@ with app.app_context():
 
 # Execução local
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)
 
 print("DEBUG: Aplicação finalizada.")
-
-
