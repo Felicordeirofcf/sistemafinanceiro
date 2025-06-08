@@ -282,3 +282,50 @@ def search():
         )
 
     return redirect(url_for("dashboard.index"))
+
+
+@dashboard_bp.route("/calendar-data")
+@login_required
+def calendar_data():
+    """Retorna dados do calendário para o FullCalendar"""
+    now = datetime.now()
+    selected_month = int(request.args.get("mes", now.month))
+    selected_year = int(request.args.get("ano", now.year))
+
+    start_date, end_date = get_date_range(selected_year, selected_month)
+
+    transactions = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.data >= start_date,
+        Transaction.data < end_date
+    ).order_by(Transaction.data).all()
+
+    calendar_data = []
+    for transaction in transactions:
+        cat = transaction.categoria
+        category_name = cat.nome if cat else "Sem categoria"
+        color = cat.cor if cat else "#3498db"
+        icon = cat.icone if cat else "fa-tag"
+        
+        # Adiciona emoji para transações recorrentes
+        title_prefix = "🔄 " if transaction.is_recurring or transaction.parent_transaction_id else ""
+        
+        calendar_data.append({
+            "id": transaction.id,
+            "title": title_prefix + transaction.descricao,
+            "start": transaction.data,
+            "color": color,
+            "extendedProps": {
+                "tipo": transaction.tipo,
+                "valor": transaction.valor,
+                "categoria": category_name,
+                "pago": transaction.pago,
+                "icon": icon,
+                "is_recurring": transaction.is_recurring or transaction.parent_transaction_id is not None
+            }
+        })
+
+    return jsonify({
+        "calendar_data": calendar_data
+    })
+

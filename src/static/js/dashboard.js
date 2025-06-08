@@ -280,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             events: function(fetchInfo, successCallback, failureCallback) {
                 $.ajax({
-                    url: `/dashboard/calendar-data?mes={{ selected_month }}&ano={{ selected_year }}`,
+                    url: `/dashboard/calendar-data?mes=${new Date().getMonth() + 1}&ano=${new Date().getFullYear()}`,
                     method: 'GET',
                     success: function(response) {
                         const events = response.calendar_data.map(event => ({
@@ -307,9 +307,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const props = event.extendedProps;
                 let details = `
                     <p><strong>Tipo:</strong> ${props.tipo === 'receita' ? 'Receita' : 'Despesa'}</p>
-                    <p><strong>Valor:</strong> R$ ${props.valor.toFixed(2).replace('.', ',')}</p>
+                    <p><strong>Valor:</strong> R$ ${(props.valor/100).toFixed(2).replace('.', ',')}</p>
                     <p><strong>Categoria:</strong> ${props.categoria}</p>
-                    <p><strong>Data:</strong> ${moment(event.start).format('DD/MM/YYYY')}</p>
+                    <p><strong>Data:</strong> ${new Date(event.start).toLocaleDateString('pt-BR')}</p>
                 `;
                 if (props.tipo === 'despesa') {
                     details += `<p><strong>Status:</strong> ${props.pago ? 'Pago' : 'Pendente'}</p>`;
