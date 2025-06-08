@@ -98,7 +98,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Função para carregar dados do dashboard via AJAX
     function loadDashboardData(month, year) {
-        const url = `/dashboard_data?month=${month}&year=${year}`;
+        const url = `/dashboard/dashboard_data?month=${month}&year=${year}`;
         fetch(url)
             .then(response => {
                 if (!response.ok) {

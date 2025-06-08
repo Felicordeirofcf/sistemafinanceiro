@@ -1,8 +1,8 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
-from datetime import datetime
-from sqlalchemy import text
-from flask import jsonify
+from datetime import datetime, timedelta
+from sqlalchemy import text, or_
+from flask import jsonify, redirect, url_for
 
 from src.models import db_session
 from src.models.transaction import Transaction
@@ -64,34 +64,13 @@ def index():
 
     calendar_data = []
     for transaction in transactions:
-        calendar_data.append({
-            "title": f"{transaction.tipo.capitalize()}: R$ {transaction.valor:.2f}",
-            "start": transaction.data.strftime("%Y-%m-%d") if isinstance(transaction.data, datetime) else str(transaction.data),
-            "color": "#28a745" if transaction.tipo == "receita" else "#dc3545",
-        })
-
-    return render_template("dashboard/index.html", **{
-        "transactions": transactions,
-        "total_receitas": total_receitas,
-        "total_despesas": total_despesas,
-        "total_despesas_pagas": total_despesas_pagas,
-        "total_despesas_pendentes": total_despesas_pendentes,
-        "saldo": saldo,
-        "selected_month": selected_month,
-        "selected_year": selected_year,
-        "month_name": month_name,
-        "available_years": available_years,
-        "calendar_data": calendar_data,
-    })
-
-    for transaction in transactions:
         # Usar cores padrão baseadas no tipo de transação
         color = "#2ecc71" if transaction.tipo == "receita" else "#e74c3c"
         title_prefix = "🔄 " if transaction.is_recurring or transaction.parent_transaction_id else ""
         calendar_data.append({
             "id": transaction.id,
             "title": title_prefix + transaction.descricao,
-            "start": transaction.data,
+            "start": transaction.data.strftime("%Y-%m-%d") if isinstance(transaction.data, datetime) else str(transaction.data),
             "color": color,
             "extendedProps": {
                 "tipo": transaction.tipo,
@@ -124,7 +103,7 @@ def index():
         total_despesas=total_despesas,
         total_despesas_pagas=total_despesas_pagas,
         total_despesas_pendentes=total_despesas_pendentes,
-        saldo_mes=saldo_mes,
+        saldo=saldo,
         selected_month=selected_month,
         selected_year=selected_year,
         selected_month_str=month_name,
@@ -135,6 +114,84 @@ def index():
         upcoming_due=upcoming_due,
         recurring_count=recurring_count
     )
+
+@dashboard_bp.route("/dashboard_data")
+@login_required
+def dashboard_data():
+    """Retorna dados agregados do dashboard em formato JSON"""
+    now = datetime.now()
+    selected_month = int(request.args.get("month", now.month))
+    selected_year = int(request.args.get("year", now.year))
+
+    start_date, end_date = get_date_range(selected_year, selected_month)
+
+    transactions = Transaction.query.filter(
+        Transaction.user_id == current_user.id,
+        Transaction.data >= start_date,
+        Transaction.data < end_date
+    ).order_by(Transaction.data).all()
+
+    # Calcular totais
+    total_receitas = sum(t.valor / 100 for t in transactions if t.tipo == "receita")  # Converter centavos para reais
+    total_despesas = sum(t.valor / 100 for t in transactions if t.tipo == "despesa")
+    total_despesas_pagas = sum(t.valor / 100 for t in transactions if t.tipo == "despesa" and t.pago)
+    total_pendencias = total_despesas - total_despesas_pagas
+    saldo_atual = total_receitas - total_despesas_pagas
+
+    # Preparar dados das transações para a tabela
+    transactions_data = []
+    for t in transactions:
+        transactions_data.append({
+            "id": t.id,
+            "data": t.data.strftime("%d/%m/%Y") if isinstance(t.data, datetime) else str(t.data),
+            "descricao": t.descricao,
+            "categoria": t.categoria.nome if t.categoria else "Sem categoria",
+            "valor": t.valor / 100,  # Converter centavos para reais
+            "tipo": t.tipo,
+            "status": "Pago" if t.pago else "Pendente"
+        })
+
+    # Despesas por categoria para o gráfico de pizza
+    despesas_por_categoria = {}
+    for t in transactions:
+        if t.tipo == "despesa":
+            categoria_nome = t.categoria.nome if t.categoria else "Sem categoria"
+            if categoria_nome not in despesas_por_categoria:
+                despesas_por_categoria[categoria_nome] = 0
+            despesas_por_categoria[categoria_nome] += t.valor / 100
+
+    despesas_categoria_list = [
+        {"categoria": cat, "valor": valor}
+        for cat, valor in despesas_por_categoria.items()
+    ]
+
+    # Eventos do calendário
+    calendar_events = []
+    for t in transactions:
+        calendar_events.append({
+            "descricao": t.descricao,
+            "valor": t.valor / 100,
+            "data": t.data.strftime("%Y-%m-%d") if isinstance(t.data, datetime) else str(t.data),
+            "tipo": t.tipo
+        })
+
+    # Nome do mês atual
+    month_names = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+    ]
+    current_month_year = f"{selected_month:02d}/{selected_year}"
+
+    return jsonify({
+        "total_receitas": total_receitas,
+        "total_despesas": total_despesas,
+        "total_pendencias": total_pendencias,
+        "saldo_atual": saldo_atual,
+        "transactions": transactions_data,
+        "despesas_por_categoria": despesas_categoria_list,
+        "calendar_events": calendar_events,
+        "current_month_year": current_month_year
+    })
 
 @dashboard_bp.route("/chart-data")
 @login_required
