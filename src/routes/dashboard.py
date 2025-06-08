@@ -56,12 +56,13 @@ def index():
 
     # Dados para o calendáario
     calendar_data = []
-    for transaction in transactions:
-        calendar_data.append({
-            "title": f"{transaction.tipo.capitalize()}: R$ {transaction.valor:.2f}",
-            "start": transaction.data.strftime("%Y-%m-%d") if isinstance(transaction.data, datetime) else str(transaction.data)
-            "color": "#28a745" if transaction.tipo == "receita" else "#dc3545"
-        })
+
+for transaction in transactions:
+    calendar_data.append({
+        "title": f"{transaction.tipo.capitalize()}: R$ {transaction.valor:.2f}",
+        "start": transaction.data.strftime("%Y-%m-%d") if isinstance(transaction.data, datetime) else str(transaction.data),
+        "color": "#28a745" if transaction.tipo == "receita" else "#dc3545"
+    })
 
     return render_template("dashboard/index.html", **{
         "transactions": transactions,
