@@ -404,7 +404,97 @@ def generate_recurring_transactions(transaction, months_ahead=12):
     return count
 
 
-# ----------------------------- MODAL DE TRANSAÇÃO -----------------------------
+# ----------------------------- DUPLICAR TRANSAÇÃO -----------------------------
+
+@transactions_bp.route("/duplicate/<int:id>", methods=["POST"])
+@login_required
+def duplicate(id):
+    """
+    Duplica uma transação para o mês seguinte com um novo valor.
+    """
+    try:
+        # Buscar a transação original
+        original_transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
+        
+        if not original_transaction:
+            return jsonify({"success": False, "message": "Transação não encontrada."}), 404
+
+        # Obter o novo valor do formulário
+        new_value_str = request.form.get("new_value")
+        if not new_value_str:
+            return jsonify({"success": False, "message": "Novo valor é obrigatório."}), 400
+
+        # Processar o novo valor (aceitar formato brasileiro)
+        try:
+            new_value_str = new_value_str.replace("R$", "").replace(" ", "").strip()
+            new_value_str = new_value_str.replace(",", ".")
+            new_value = float(new_value_str)
+            
+            if new_value <= 0:
+                return jsonify({"success": False, "message": "O valor deve ser maior que zero."}), 400
+                
+        except ValueError:
+            return jsonify({"success": False, "message": "Valor inválido."}), 400
+
+        # Calcular a nova data (mês seguinte)
+        original_date = original_transaction.data
+        if isinstance(original_date, str):
+            original_date = datetime.strptime(original_date, "%Y-%m-%d").date()
+        elif isinstance(original_date, datetime):
+            original_date = original_date.date()
+        
+        # Adicionar 1 mês à data original
+        new_date = original_date + relativedelta(months=1)
+        
+        # Calcular nova data de vencimento (se for despesa)
+        new_vencimento = None
+        if original_transaction.tipo == "despesa" and original_transaction.vencimento:
+            original_vencimento = original_transaction.vencimento
+            if isinstance(original_vencimento, str):
+                original_vencimento = datetime.strptime(original_vencimento, "%Y-%m-%d").date()
+            elif isinstance(original_vencimento, datetime):
+                original_vencimento = original_vencimento.date()
+            
+            new_vencimento = original_vencimento + relativedelta(months=1)
+        elif original_transaction.tipo == "despesa":
+            # Se não tinha vencimento, usar a nova data
+            new_vencimento = new_date
+
+        # Criar a nova transação
+        new_transaction = Transaction(
+            user_id=current_user.id,
+            descricao=original_transaction.descricao,
+            valor=new_value,
+            tipo=original_transaction.tipo,
+            data=new_date,
+            vencimento=new_vencimento,
+            pago=False if original_transaction.tipo == "despesa" else True,  # Despesas sempre não pagas, receitas sempre pagas
+            categoria_id=original_transaction.categoria_id,
+            observacoes=original_transaction.observacoes,
+            is_recurring=False,  # Transação duplicada não é recorrente
+            recurrence_frequency=None,
+            recurrence_start_date=None,
+            recurrence_end_date=None,
+            parent_transaction_id=None  # Não é filha de nenhuma transação
+        )
+
+        db_session.add(new_transaction)
+        db_session.commit()
+
+        # Formatar a data para exibição
+        new_date_formatted = new_date.strftime("%d/%m/%Y")
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Transação duplicada com sucesso para {new_date_formatted} com valor de R$ {new_value:.2f}".replace(".", ",")
+        })
+
+    except Exception as e:
+        db_session.rollback()
+        return jsonify({"success": False, "message": f"Erro ao duplicar transação: {str(e)}"}), 500
+
+
+# ----------------------------- MODAL DE TRANSAÇÃO ----------------------------------------------------
 
 @transactions_bp.route("/modal")
 @login_required

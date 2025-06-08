@@ -152,71 +152,120 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inicializar DataTables de forma mais robusta
     function initializeDataTable() {
         try {
+            // Verificar se jQuery e DataTables estão disponíveis
+            if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
+                console.log('jQuery ou DataTables não estão disponíveis ainda');
+                return;
+            }
+
             const tableElement = document.getElementById('transactionsTable');
             if (!tableElement) {
                 console.log('Tabela transactionsTable não encontrada');
                 return;
             }
 
-            // Destruir DataTable existente se houver
-            if ($.fn.DataTable && $.fn.DataTable.isDataTable('#transactionsTable')) {
-                $('#transactionsTable').DataTable().clear().destroy();
-                $('#transactionsTable').empty();
+            const $table = $('#transactionsTable');
+            
+            // Verificar se a tabela tem estrutura básica necessária
+            const thead = $table.find('thead');
+            const tbody = $table.find('tbody');
+            
+            if (thead.length === 0 || tbody.length === 0) {
+                console.log('Estrutura da tabela incompleta (faltando thead ou tbody)');
+                return;
+            }
+
+            // Destruir DataTable existente de forma mais segura
+            if ($.fn.DataTable.isDataTable('#transactionsTable')) {
+                try {
+                    const existingTable = $('#transactionsTable').DataTable();
+                    existingTable.destroy(true); // true remove também do DOM
+                    console.log('DataTable existente destruído');
+                } catch (destroyError) {
+                    console.warn('Erro ao destruir DataTable existente:', destroyError);
+                }
             }
             
             // Aguardar um momento para garantir que a destruição foi completa
             setTimeout(() => {
                 try {
-                    const $table = $('#transactionsTable');
-                    
-                    // Verificar se a tabela ainda existe após possível destruição
-                    if ($table.length === 0) {
+                    // Re-verificar se a tabela ainda existe
+                    const $tableAfterDestroy = $('#transactionsTable');
+                    if ($tableAfterDestroy.length === 0) {
                         console.log('Tabela não existe mais após destruição');
                         return;
                     }
 
-                    const headerCols = $table.find('thead th').length;
-                    const bodyRows = $table.find('tbody tr').length;
+                    const headerCols = $tableAfterDestroy.find('thead th').length;
+                    const bodyRows = $tableAfterDestroy.find('tbody tr').length;
                     
-                    console.log(`Tabela encontrada - Colunas: ${headerCols}, Linhas: ${bodyRows}`);
+                    console.log(`Verificando tabela - Colunas: ${headerCols}, Linhas: ${bodyRows}`);
                     
-                    // Só inicializar se a tabela tem estrutura válida
-                    if (headerCols >= 4) { // Mínimo de 4 colunas esperadas
-                        // Verificar se há dados reais (não apenas mensagem de "nenhum registro")
-                        const hasRealData = bodyRows > 0 && $table.find('tbody tr td[colspan]').length === 0;
-                        
+                    // Verificar se tem exatamente 5 colunas conforme especificado
+                    if (headerCols !== 5) {
+                        console.log(`Número incorreto de colunas: ${headerCols} (esperado: 5)`);
+                        return;
+                    }
+                    
+                    // Verificar se há dados reais (não apenas mensagem de "nenhum registro")
+                    const hasRealData = bodyRows > 0 && $tableAfterDestroy.find('tbody tr td[colspan]').length === 0;
+                    
+                    console.log(`Dados reais na tabela: ${hasRealData}`);
+                    
+                    // Configuração do DataTable
+                    const config = {
+                        destroy: true, // Permitir reinicialização
+                        language: {
+                            url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
+                        },
+                        columnDefs: [
+                            { orderable: false, targets: [4] } // Coluna de ações (índice 4) não ordenável
+                        ],
+                        responsive: true,
+                        pageLength: 10,
+                        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+                        info: hasRealData,
+                        paging: hasRealData,
+                        searching: hasRealData,
+                        autoWidth: false,
+                        processing: false,
+                        serverSide: false
+                    };
+                                       // SOMENTE INICIALIZAR DATATABLE SE HOUVER DADOS REAIS
+                    if (hasRealData) {
+                        // Configuração do DataTable
                         const config = {
                             destroy: true, // Permitir reinicialização
                             language: {
                                 url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
                             },
                             columnDefs: [
-                                { orderable: false, targets: -1 } // Última coluna (ações) não ordenável
+                                { orderable: false, targets: [4] } // Coluna de ações (índice 4) não ordenável
                             ],
                             responsive: true,
                             pageLength: 10,
                             lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-                            info: hasRealData,
-                            paging: hasRealData,
-                            searching: hasRealData,
-                            autoWidth: false
+                            info: true, // Sempre mostrar info se houver dados
+                            paging: true, // Sempre paginar se houver dados
+                            searching: true, // Sempre pesquisar se houver dados
+                            autoWidth: false,
+                            processing: false,
+                            serverSide: false
                         };
                         
-                        // Só definir ordenação se há dados reais
-                        if (hasRealData && headerCols >= 2) {
-                            config.order = [[1, 'desc']]; // Ordenar por segunda coluna (data)
-                        }
+                        config.order = [[1, 'desc']]; // Ordenar por coluna de data (índice 1)
                         
-                        $table.DataTable(config);
+                        // Inicializar DataTable
+                        $tableAfterDestroy.DataTable(config);
                         console.log('DataTable inicializado com sucesso');
-                        
                     } else {
-                        console.log('Estrutura da tabela inválida para DataTable');
-                    }
-                } catch (innerError) {
-                    console.warn('Erro na inicialização interna do DataTable:', innerError);
+                        console.log('Nenhum dado real encontrado na tabela, DataTable não será inicializado.');
+                        // Opcional: Remover classes do DataTable para exibir a tabela HTML simples
+                        $tableAfterDestroy.removeClass('dataTable no-footer');
+                        $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
+                    }nnerError);
                 }
-            }, 100);
+            }, 150); // Aumentado o timeout para garantir destruição completa
             
         } catch (error) {
             console.warn('Erro ao inicializar DataTable:', error);
@@ -442,22 +491,112 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Aguardar carregamento completo antes de inicializar
     $(document).ready(function() {
+        // Aguardar um pouco mais para garantir que todas as dependências estejam carregadas
         setTimeout(function() {
             initializeDataTable();
             formatExistingValues();
             registerEventListeners();
+        }, 500);
+    });
+
+    // Aguardar carregamento da janela (fallback)
+    $(window).on('load', function() {
+        setTimeout(function() {
+            // Só reinicializar se ainda não foi inicializado
+            if (!$.fn.DataTable.isDataTable('#transactionsTable')) {
+                initializeDataTable();
+            }
+            formatExistingValues();
         }, 300);
     });
 
-    // Aguardar carregamento da janela
-    $(window).on('load', function() {
-        setTimeout(function() {
-            initializeDataTable();
-            formatExistingValues();
-        }, 200);
+    // Handle duplicate transaction
+    $(document).on('click', '.duplicate-btn', function(e) {
+        e.preventDefault();
+        const transactionId = $(this).data('id');
+        
+        Swal.fire({
+            title: 'Duplicar Transação',
+            text: 'Informe o novo valor para a transação duplicada:',
+            input: 'text',
+            inputPlaceholder: 'Ex: 100,50',
+            inputAttributes: {
+                'pattern': '[0-9]+([,\.][0-9]{1,2})?',
+                'title': 'Digite um valor válido (ex: 100,50)'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Duplicar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#007bff',
+            cancelButtonColor: '#6c757d',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Você precisa informar um valor!';
+                }
+                
+                // Validar formato do valor
+                const cleanValue = value.replace(',', '.');
+                const numValue = parseFloat(cleanValue);
+                
+                if (isNaN(numValue) || numValue <= 0) {
+                    return 'Por favor, digite um valor válido maior que zero!';
+                }
+                
+                return null;
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const newValue = result.value.replace(',', '.');
+                
+                // Mostrar loading
+                Swal.fire({
+                    title: 'Duplicando transação...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+                
+                // Fazer requisição para duplicar
+                $.ajax({
+                    url: `/transactions/duplicate/${transactionId}`,
+                    method: 'POST',
+                    data: {
+                        new_value: newValue
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Transação Duplicada!',
+                                text: response.message,
+                                showConfirmButton: false,
+                                timer: 1500
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Erro!',
+                                text: response.message || 'Erro ao duplicar a transação.'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Erro ao duplicar transação:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erro!',
+                            text: 'Erro ao duplicar a transação. Tente novamente.'
+                        });
+                    }
+                });
+            }
+        });
     });
 
-    // Handle edit transaction modal populate
+    // Handle pay transaction
     $(document).on('click', '.edit-btn', function() {
         const transactionId = $(this).data('id');
         
