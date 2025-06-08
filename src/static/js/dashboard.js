@@ -258,20 +258,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Inicializar DataTable
                         $tableAfterDestroy.DataTable(config);
                         console.log('DataTable inicializado com sucesso');
-                    } else {
-                        console.log('Nenhum dado real encontrado na tabela, DataTable não será inicializado.');
-                        // Opcional: Remover classes do DataTable para exibir a tabela HTML simples
-                        $tableAfterDestroy.removeClass('dataTable no-footer');
-                        $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
-                    }
-                }
-            }, 150); // Aumentado o timeout para garantir destruição completa
-            
-        } catch (error) {
-            console.warn('Erro ao inicializar DataTable:', error);
+                   try {
+    setTimeout(() => {
+        if (algumaCoisa) {
+            // ... lógica quando tem dados
+        } else {
+            console.log('Nenhum dado real encontrado na tabela, DataTable não será inicializado.');
+            $tableAfterDestroy.removeClass('dataTable no-footer');
+            $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
         }
-    }
-
+    }, 150); // Aumentado o timeout para garantir destruição completa
+} catch (error) {
+    console.warn('Erro ao inicializar DataTable:', error);
+}
     // Função única para submissão do formulário
     async function submitTransactionForm(e) {
         e.preventDefault();
