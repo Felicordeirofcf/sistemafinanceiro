@@ -199,32 +199,6 @@
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="card shadow-sm mb-4">
-                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                <h6 class="m-0 font-weight-bold">Despesas por Categoria</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="expenseChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="card shadow-sm mb-4">
-                            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                                <h6 class="m-0 font-weight-bold">Receitas por Categoria</h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="incomeChart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
             
             <!-- Calendário -->
@@ -249,7 +223,8 @@
                         <h6 class="m-0 font-weight-bold">Nova Transação</h6>
                     </div>
                     <div class="card-body">
-                        <form id="form-transacao" action="{{ url_for("transactions.add", mes=selected_month, ano=selected_year) }}" method="post">               <div class="mb-3">
+                        <form id="form-transacao" action="{{ url_for("transactions.add", mes=selected_month, ano=selected_year) }}" method="post">
+                            <div class="mb-3">
                                 <label class="form-label">Tipo:</label>
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" id="tipo-receita" name="tipo" value="receita" checked>
@@ -275,15 +250,6 @@
                             <div class="mb-3">
                                 <label for="descricao" class="form-label">Descrição:</label>
                                 <input type="text" class="form-control" id="descricao" name="descricao" required>
-                            </div>
-                            <div class="mb-3">
-                                <label for="categoria" class="form-label">Categoria:</label>
-                                <select class="form-select" id="categoria" name="categoria_id" required>
-                                    <option value="">Selecione uma categoria</option>
-                                    {% for category in categories %}
-                                        <option value="{{ category.id }}">{{ category.nome }}</option>
-                                    {% endfor %}
-                                </select>
                             </div>
                             <div class="mb-3 form-check">
                                 <input type="checkbox" class="form-check-input" id="pago" name="pago" value="True">
@@ -320,7 +286,6 @@
                                 <thead>
                                     <tr>
                                         <th>Descrição</th>
-                                        <th>Categoria</th>
                                         <th>Data</th>
                                         <th>Valor</th>
                                         <th>Status</th>
@@ -331,7 +296,6 @@
                                     {% for transaction in transactions %}
                                         <tr class="{% if transaction.tipo == 'receita' %}table-success{% elif transaction.tipo == 'despesa' and transaction.pago %}table-info{% elif transaction.tipo == 'despesa' and not transaction.pago %}table-warning{% endif %}">
                                             <td>{{ transaction.descricao }}</td>
-                                            <td>{{ transaction.categoria.nome if transaction.categoria else 'N/A' }}</td>
                                             <td>{{ transaction.data.strftime('%d/%m/%Y') }}</td>
                                             <td>R$ {{ "%.2f"|format(transaction.valor) }}</td>
                                             <td>
@@ -361,7 +325,7 @@
                                         </tr>
                                     {% else %}
                                         <tr>
-                                            <td colspan="6" class="text-center">Nenhum registro encontrado</td>
+                                            <td colspan="5" class="text-center">Nenhum registro encontrado</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -411,15 +375,6 @@
                             <label for="edit-descricao" class="form-label">Descrição:</label>
                             <input type="text" class="form-control" id="edit-descricao" name="descricao" required>
                         </div>
-                        <div class="mb-3">
-                            <label for="edit-categoria" class="form-label">Categoria:</label>
-                            <select class="form-select" id="edit-categoria" name="categoria_id" required>
-                                <option value="">Selecione uma categoria</option>
-                                {% for category in categories %}
-                                    <option value="{{ category.id }}">{{ category.nome }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
                         <div class="mb-3 form-check">
                             <input type="checkbox" class="form-check-input" id="edit-pago" name="pago" value="True">
                             <label class="form-check-label" for="edit-pago">Pago</label>
@@ -461,30 +416,11 @@
                                 <input type="text" class="form-control" id="search-termo" name="termo" value="{{ search_params.termo if search_params else '' }}">
                             </div>
                             <div class="col-md-6">
-                                <label for="search-categoria" class="form-label">Categoria:</label>
-                                <select class="form-select" id="search-categoria" name="categoria_id">
-                                    <option value="">Todas as Categorias</option>
-                                    {% for category in categories %}
-                                        <option value="{{ category.id }}" {% if search_params and search_params.categoria_id == category.id|string %}selected{% endif %}>{{ category.nome }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="row mb-3">
-                            <div class="col-md-6">
                                 <label for="search-tipo" class="form-label">Tipo:</label>
                                 <select class="form-select" id="search-tipo" name="tipo">
                                     <option value="">Todos</option>
                                     <option value="receita" {% if search_params and search_params.tipo == 'receita' %}selected{% endif %}>Receita</option>
                                     <option value="despesa" {% if search_params and search_params.tipo == 'despesa' %}selected{% endif %}>Despesa</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6">
-                                <label for="search-status" class="form-label">Status:</label>
-                                <select class="form-select" id="search-status" name="status">
-                                    <option value="">Todos</option>
-                                    <option value="pago" {% if search_params and search_params.status == 'pago' %}selected{% endif %}>Pago</option>
-                                    <option value="pendente" {% if search_params and search_params.status == 'pendente' %}selected{% endif %}>Pendente</option>
                                 </select>
                             </div>
                         </div>
@@ -508,13 +444,23 @@
                                 <input type="number" class="form-control" id="search-valor-max" name="valor_max" step="0.01" value="{{ search_params.valor_max if search_params else '' }}">
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="search-recorrente" class="form-label">Recorrente:</label>
-                            <select class="form-select" id="search-recorrente" name="is_recurring">
-                                <option value="">Todos</option>
-                                <option value="sim" {% if search_params and search_params.is_recurring == 'sim' %}selected{% endif %}>Sim</option>
-                                <option value="nao" {% if search_params and search_params.is_recurring == 'nao' %}selected{% endif %}>Não</option>
-                            </select>
+                        <div class="row mb-3">
+                             <div class="col-md-6">
+                                <label for="search-status" class="form-label">Status:</label>
+                                <select class="form-select" id="search-status" name="status">
+                                    <option value="">Todos</option>
+                                    <option value="pago" {% if search_params and search_params.status == 'pago' %}selected{% endif %}>Pago</option>
+                                    <option value="pendente" {% if search_params and search_params.status == 'pendente' %}selected{% endif %}>Pendente</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="search-recorrente" class="form-label">Recorrente:</label>
+                                <select class="form-select" id="search-recorrente" name="is_recurring">
+                                    <option value="">Todos</option>
+                                    <option value="sim" {% if search_params and search_params.is_recurring == 'sim' %}selected{% endif %}>Sim</option>
+                                    <option value="nao" {% if search_params and search_params.is_recurring == 'nao' %}selected{% endif %}>Não</option>
+                                </select>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search me-2"></i>Buscar

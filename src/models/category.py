@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
-from src.models import Base
+from models import Base
 
 class Category(Base):
     """Modelo de categoria para transações (removido do uso ativo)"""

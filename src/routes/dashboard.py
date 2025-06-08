@@ -42,7 +42,7 @@ def index():
     saldo_mes = total_receitas - total_despesas_pagas
 
     query = text("""
-        SELECT DISTINCT TO_CHAR(CAST(transactions.data AS DATE), 'YYYY') AS year
+        SELECT DISTINCT strftime('%Y', transactions.data) AS year
         FROM transactions
         WHERE user_id = :user_id
     """)
@@ -57,24 +57,11 @@ def index():
     ]
     month_name = month_names[selected_month - 1] if 1 <= selected_month <= 12 else f"Mês {selected_month}"
 
-    categories = Category.query.filter_by(user_id=current_user.id).all()
-    category_colors = {c.nome: c.cor for c in categories}
-    category_icons = {c.nome: c.icone for c in categories}
-
-    expense_by_category = {}
-    income_by_category = {}
     calendar_data = []
 
     for transaction in transactions:
-        cat = transaction.categoria
-        category_name = cat.nome if cat else "Sem categoria"
-        if transaction.tipo == "despesa":
-            expense_by_category[category_name] = expense_by_category.get(category_name, 0) + transaction.valor
-        elif transaction.tipo == "receita":
-            income_by_category[category_name] = income_by_category.get(category_name, 0) + transaction.valor
-
-        color = cat.cor if cat else "#3498db"
-        icon = cat.icone if cat else "fa-tag"
+        # Usar cores padrão baseadas no tipo de transação
+        color = "#2ecc71" if transaction.tipo == "receita" else "#e74c3c"
         title_prefix = "🔄 " if transaction.is_recurring or transaction.parent_transaction_id else ""
         calendar_data.append({
             "id": transaction.id,
@@ -84,9 +71,7 @@ def index():
             "extendedProps": {
                 "tipo": transaction.tipo,
                 "valor": transaction.valor,
-                "categoria": category_name,
                 "pago": transaction.pago,
-                "icon": icon,
                 "is_recurring": transaction.is_recurring or transaction.parent_transaction_id is not None
             }
         })
@@ -121,9 +106,6 @@ def index():
         available_years=available_years,
         current_year=now.year,
         today_date=today,
-        categories=categories,
-        expense_by_category=expense_by_category,
-        income_by_category=income_by_category,
         calendar_data=calendar_data,
         upcoming_due=upcoming_due,
         recurring_count=recurring_count
@@ -143,29 +125,6 @@ def chart_data():
         Transaction.data >= start_date,
         Transaction.data < end_date
     ).all()
-
-    categories = Category.query.filter_by(user_id=current_user.id).all()
-    category_colors = {c.nome: c.cor for c in categories}
-
-    expense_by_category = {}
-    income_by_category = {}
-
-    for transaction in transactions:
-        category_name = transaction.categoria.nome if transaction.categoria else "Sem categoria"
-        if transaction.tipo == "despesa":
-            expense_by_category[category_name] = expense_by_category.get(category_name, 0) + transaction.valor
-        elif transaction.tipo == "receita":
-            income_by_category[category_name] = income_by_category.get(category_name, 0) + transaction.valor
-
-    expense_chart_data = [
-        {"name": cat, "value": val, "color": category_colors.get(cat, "#3498db")}
-        for cat, val in expense_by_category.items()
-    ]
-
-    income_chart_data = [
-        {"name": cat, "value": val, "color": category_colors.get(cat, "#2ecc71")}
-        for cat, val in income_by_category.items()
-    ]
 
     bar_chart_data = {
         "labels": ["Receitas", "Despesas"],
@@ -194,8 +153,6 @@ def chart_data():
     }
 
     return jsonify({
-        "expense_chart": expense_chart_data,
-        "income_chart": income_chart_data,
         "bar_chart": bar_chart_data,
         "fixed_vs_variable_chart": fixed_vs_variable_data
     })
@@ -205,7 +162,6 @@ def chart_data():
 def search():
     if request.method == "POST":
         termo = request.form.get("termo", "")
-        categoria_id_str = request.form.get("categoria_id")
         tipo = request.form.get("tipo")
         data_inicio = request.form.get("data_inicio")
         data_fim = request.form.get("data_fim")
@@ -218,13 +174,6 @@ def search():
 
         if termo:
             query = query.filter(Transaction.descricao.ilike(f"%{termo}%"))
-
-        if categoria_id_str:
-            try:
-                categoria_id = int(categoria_id_str)
-                query = query.filter(Transaction.categoria_id == categoria_id)
-            except (ValueError, TypeError):
-                pass
 
         if tipo:
             query = query.filter(Transaction.tipo == tipo)
@@ -262,15 +211,12 @@ def search():
                 query = query.filter(Transaction.is_recurring == False, Transaction.parent_transaction_id == None)
 
         transactions = query.order_by(Transaction.data.desc()).all()
-        categories = Category.query.filter_by(user_id=current_user.id).all()
 
         return render_template(
             "dashboard/search_results.html",
             transactions=transactions,
-            categories=categories,
             search_params={
                 "termo": termo,
-                "categoria_id": categoria_id_str,
                 "tipo": tipo,
                 "data_inicio": data_inicio,
                 "data_fim": data_fim,
@@ -302,10 +248,8 @@ def calendar_data():
 
     calendar_data = []
     for transaction in transactions:
-        cat = transaction.categoria
-        category_name = cat.nome if cat else "Sem categoria"
-        color = cat.cor if cat else "#3498db"
-        icon = cat.icone if cat else "fa-tag"
+        # Usar cores padrão baseadas no tipo de transação
+        color = "#2ecc71" if transaction.tipo == "receita" else "#e74c3c"
         
         # Adiciona emoji para transações recorrentes
         title_prefix = "🔄 " if transaction.is_recurring or transaction.parent_transaction_id else ""
@@ -318,9 +262,7 @@ def calendar_data():
             "extendedProps": {
                 "tipo": transaction.tipo,
                 "valor": transaction.valor,
-                "categoria": category_name,
                 "pago": transaction.pago,
-                "icon": icon,
                 "is_recurring": transaction.is_recurring or transaction.parent_transaction_id is not None
             }
         })

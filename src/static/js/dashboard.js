@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
             "language": {
                 "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
             },
-            "order": [[2, "desc"]] // Order by Date (column 2) descending
+            "order": [[1, "desc"]] // Order by Date (column 1) descending
         });
     }
 
@@ -209,7 +209,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     $('#edit-data').val(transaction.data);
                     $('#edit-vencimento').val(transaction.vencimento);
                     $('#edit-descricao').val(transaction.descricao);
-                    $('#edit-categoria').val(transaction.categoria_id);
                     $('#edit-pago').prop('checked', transaction.pago);
                 } else {
                     Swal.fire({
@@ -307,8 +306,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const props = event.extendedProps;
                 let details = `
                     <p><strong>Tipo:</strong> ${props.tipo === 'receita' ? 'Receita' : 'Despesa'}</p>
-                    <p><strong>Valor:</strong> R$ ${(props.valor/100).toFixed(2).replace('.', ',')}</p>
-                    <p><strong>Categoria:</strong> ${props.categoria}</p>
+                    <p><strong>Valor:</strong> R$ ${(props.valor).toFixed(2).replace('.', ',')}</p>
                     <p><strong>Data:</strong> ${new Date(event.start).toLocaleDateString('pt-BR')}</p>
                 `;
                 if (props.tipo === 'despesa') {
@@ -331,8 +329,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Chart.js initialization
     function loadChartData() {
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        
         $.ajax({
-            url: `/dashboard/chart-data?mes={{ selected_month }}&ano={{ selected_year }}`,
+            url: `/dashboard/chart-data?mes=${currentMonth}&ano=${currentYear}`,
             method: 'GET',
             success: function(response) {
                 // Bar Chart (Receitas x Despesas)
@@ -349,52 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                     });
                 }
-
-                // Expense Chart (Despesas por Categoria)
-                const expenseCtx = document.getElementById('expenseChart');
-                if (expenseCtx) {
-                    new Chart(expenseCtx, {
-                        type: 'pie',
-                        data: {
-                            labels: response.expense_chart.map(item => item.name),
-                            datasets: [{
-                                data: response.expense_chart.map(item => item.value),
-                                backgroundColor: response.expense_chart.map(item => item.color)
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                },
-                            }
-                        }
-                    });
-                }
-
-                // Income Chart (Receitas por Categoria)
-                const incomeCtx = document.getElementById('incomeChart');
-                if (incomeCtx) {
-                    new Chart(incomeCtx, {
-                        type: 'pie',
-                        data: {
-                            labels: response.income_chart.map(item => item.name),
-                            datasets: [{
-                                data: response.income_chart.map(item => item.value),
-                                backgroundColor: response.income_chart.map(item => item.color)
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: {
-                                    position: 'top',
-                                },
-                            }
-                        }
-                    });
-                }
             },
             error: function() {
                 Swal.fire({
@@ -406,57 +361,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Load chart data on page load
     loadChartData();
-
-    // Fetch and display alerts
-    function fetchAlerts() {
-        $.ajax({
-            url: '/alerts/upcoming_due',
-            method: 'GET',
-            success: function(response) {
-                const alertsDropdown = $('#alerts-dropdown');
-                const alertsBadge = $('#alerts-badge');
-                alertsDropdown.find('.alert-item').remove(); // Clear previous alerts
-
-                if (response.upcoming_due && response.upcoming_due.length > 0) {
-                    alertsBadge.text(response.upcoming_due.length).show();
-                    $('#no-alerts').hide();
-                    response.upcoming_due.forEach(alert => {
-                        alertsDropdown.append(`
-                            <li><a class="dropdown-item alert-item" href="#">${alert.descricao} - R$ ${alert.valor.toFixed(2).replace('.', ',')} (Vence em: ${alert.vencimento})</a></li>
-                        `);
-                    });
-                } else {
-                    alertsBadge.hide();
-                    $('#no-alerts').show();
-                }
-            },
-            error: function() {
-                console.error('Erro ao carregar alertas.');
-            }
-        });
-    }
-
-    fetchAlerts();
-
-    // Initial setup for edit modal based on transaction type
-    $(document).on('change', '#edit-tipo-receita, #edit-tipo-despesa', function() {
-        if ($('#edit-tipo-despesa').is(':checked')) {
-            $('#edit-vencimento-group').show();
-            $('#edit-recorrente-group').show();
-        } else {
-            $('#edit-vencimento-group').hide();
-            $('#edit-recorrente-group').hide();
-            $('#edit-frequencia-group').hide(); // Hide frequency if not despesa
-        }
-    });
-
-    $(document).on('change', '#edit-recorrente', function() {
-        if ($(this).is(':checked')) {
-            $('#edit-frequencia-group').show();
-        } else {
-            $('#edit-frequencia-group').hide();
-        }
-    });
 });
 

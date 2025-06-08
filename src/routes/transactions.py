@@ -3,9 +3,9 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-from src.models import db_session
-from src.models.transaction import Transaction
-from src.models.category import Category
+from models import db_session
+from models.transaction import Transaction
+from models.category import Category
 
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
 
@@ -19,14 +19,27 @@ def add():
     valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
     valor = int(valor_str) if valor_str.isdigit() else 0
     tipo = request.form.get("tipo")
-    data = request.form.get("data")
-    vencimento = request.form.get("vencimento") if tipo == "despesa" else None
+    data_str = request.form.get("data")
+    vencimento_str = request.form.get("vencimento") if tipo == "despesa" else None
     categoria_id = request.form.get("categoria_id")
     observacoes = request.form.get("observacoes", "")
 
+    # Converter strings de data para objetos date
+    try:
+        data = datetime.strptime(data_str, "%Y-%m-%d").date() if data_str else None
+        vencimento = datetime.strptime(vencimento_str, "%Y-%m-%d").date() if vencimento_str else None
+    except ValueError:
+        flash("Formato de data inválido.", "danger")
+        return redirect(url_for("dashboard.index"))
+
     is_recurring = request.form.get("is_recurring") == "on"
     recurrence_frequency = request.form.get("recurrence_frequency")
-    recurrence_end_date = request.form.get("recurrence_end_date")
+    recurrence_end_date_str = request.form.get("recurrence_end_date")
+    
+    try:
+        recurrence_end_date = datetime.strptime(recurrence_end_date_str, "%Y-%m-%d").date() if recurrence_end_date_str else None
+    except ValueError:
+        recurrence_end_date = None
 
     if not descricao or not valor or not tipo or not data:
         flash("Todos os campos obrigatórios devem ser preenchidos.", "danger")

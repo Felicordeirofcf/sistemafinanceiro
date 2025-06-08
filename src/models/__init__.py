@@ -7,9 +7,9 @@ print("[INIT] Iniciando src/models/__init__.py")
 
 # Carrega a URL do banco
 try:
-    from src.config import DATABASE_URL
+    from config import DATABASE_URL
 except ImportError:
-    raise ImportError("[INIT][ERRO] Não foi possível importar DATABASE_URL de src.config.")
+    raise ImportError("[INIT][ERRO] Não foi possível importar DATABASE_URL de config.")
 
 # Validação da URL
 if not DATABASE_URL or not isinstance(DATABASE_URL, str):
@@ -47,9 +47,9 @@ def test_connection():
 def init_db():
     print("[INIT] Iniciando criação de tabelas com init_db()")
     try:
-        import src.models.user
-        import src.models.transaction
-        import src.models.category
+        import models.user
+        import models.transaction
+        import models.category
         Base.metadata.create_all(bind=engine)
         print("[INIT] Tabelas criadas com sucesso.")
     except Exception as e:

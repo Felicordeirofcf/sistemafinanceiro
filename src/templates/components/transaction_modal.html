@@ -43,17 +43,6 @@
                                     <option value="despesa">Despesa</option>
                                 </select>
                             </div>
-                            <div class="col-md-6">
-                                <label for="categoria_id" class="form-label">Categoria</label>
-                                <select class="form-select" id="categoria_id" name="categoria_id" required>
-                                    <option value="">Selecione uma categoria</option>
-                                    {% for categoria in categories %}
-                                        <option value="{{ categoria.id }}" data-tipo="{{ categoria.tipo }}">
-                                            {{ categoria.nome }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
                         </div>
                         
                         <div class="row mb-3">
@@ -100,73 +89,22 @@
                             <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
                         </div>
                         
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="pago" name="pago">
+                            <label class="form-check-label" for="pago">
+                                Marcar como pago
+                            </label>
+                            <small class="text-muted d-block">Apenas para despesas</small>
                         </div>
                     </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="submit" form="transactionForm" class="btn btn-primary">Salvar</button>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Scripts -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const tipoSelect = document.getElementById('tipo');
-            const vencimentoField = document.querySelector('.vencimento-field');
-            const recurringOptions = document.querySelector('.recurring-options');
-            const recurringFields = document.querySelector('.recurring-fields');
-            const isRecurringCheckbox = document.getElementById('is_recurring');
-            const categoriaSelect = document.getElementById('categoria_id');
-            
-            function updateFieldsVisibility() {
-                const isTipoDespesa = tipoSelect.value === 'despesa';
-                vencimentoField.style.display = isTipoDespesa ? 'block' : 'none';
-                recurringOptions.style.display = isTipoDespesa ? 'block' : 'none';
-                
-                if (!isTipoDespesa) {
-                    isRecurringCheckbox.checked = false;
-                    recurringFields.style.display = 'none';
-                }
-            }
-
-            // Inicialização
-            updateFieldsVisibility();
-
-            tipoSelect.addEventListener('change', function() {
-                updateFieldsVisibility();
-                
-                const tipo = this.value;
-                const options = categoriaSelect.querySelectorAll('option');
-
-                options.forEach(option => {
-                    if (option.value === '') return;
-                    const categoriaTipo = option.getAttribute('data-tipo');
-                    option.style.display = (categoriaTipo === tipo) ? '' : 'none';
-                });
-
-                categoriaSelect.value = '';
-            });
-
-            isRecurringCheckbox.addEventListener('change', function() {
-                recurringFields.style.display = this.checked ? 'flex' : 'none';
-            });
-
-            const valorInput = document.getElementById('valor');
-            valorInput.addEventListener('input', function(e) {
-                let value = e.target.value.replace(/\D/g, '');
-                if (value === '') return e.target.value = '';
-                value = (parseInt(value) / 100).toFixed(2);
-                e.target.value = value.replace('.', ',');
-            });
-
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('data').value = today;
-        });
-    </script>
 </body>
 </html>
+
