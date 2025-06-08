@@ -30,6 +30,14 @@ def index():
         Transaction.data < end_date
     ).order_by(Transaction.data).all()
 
+    # Converte data caso venha como string
+    for t in transactions:
+        if isinstance(t.data, str):
+            try:
+                t.data = datetime.strptime(t.data, "%Y-%m-%d")
+            except ValueError:
+                t.data = now  # fallback se formato inesperado
+
     total_receitas = sum(t.valor for t in transactions if t.tipo == "receita")
     total_despesas = sum(t.valor for t in transactions if t.tipo == "despesa")
     total_despesas_pagas = sum(t.valor for t in transactions if t.tipo == "despesa" and t.pago)
