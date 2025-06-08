@@ -51,7 +51,6 @@ def delete(id):
 def edit(id):
     """Edita uma transação existente"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
-
     if not transaction:
         flash("Transação não encontrada.", "danger")
         return redirect(url_for("dashboard.index"))
@@ -60,14 +59,22 @@ def edit(id):
     valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
     valor = int(valor_str) if valor_str.isdigit() else 0
     tipo = request.form.get("tipo")
-    data = request.form.get("data")
-    vencimento = request.form.get("vencimento") if tipo == "despesa" else None
+    data_str = request.form.get("data")
+    vencimento_str = request.form.get("vencimento") if tipo == "despesa" else None
     categoria_id = request.form.get("categoria_id")
     observacoes = request.form.get("observacoes", "")
 
+    try:
+        data = datetime.strptime(data_str, "%Y-%m-%d").date()
+        vencimento = datetime.strptime(vencimento_str, "%Y-%m-%d").date() if vencimento_str else None
+    except Exception:
+        flash("Erro ao processar as datas.", "danger")
+        return redirect(url_for("dashboard.index"))
+
     is_recurring = request.form.get("is_recurring") == "on"
     recurrence_frequency = request.form.get("recurrence_frequency")
-    recurrence_end_date = request.form.get("recurrence_end_date")
+    recurrence_end_date_str = request.form.get("recurrence_end_date")
+    recurrence_end_date = datetime.strptime(recurrence_end_date_str, "%Y-%m-%d").date() if recurrence_end_date_str else None
     update_all_future = request.form.get("update_all_future") == "on"
 
     if not descricao or not valor or not tipo or not data:
@@ -82,13 +89,13 @@ def edit(id):
             parent.descricao = descricao
             parent.valor = valor
             parent.tipo = tipo
-            parent.categoria_id = categoria_id if categoria_id else None
+            parent.categoria_id = categoria_id or None
             parent.observacoes = observacoes
             parent.is_recurring = is_recurring
             parent.recurrence_frequency = recurrence_frequency if is_recurring else None
-            parent.recurrence_end_date = recurrence_end_date if is_recurring and recurrence_end_date else None
+            parent.recurrence_end_date = recurrence_end_date if is_recurring else None
 
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = datetime.now().date()
             future_transactions = Transaction.query.filter(
                 Transaction.parent_transaction_id == parent_id,
                 Transaction.data >= today
@@ -98,7 +105,7 @@ def edit(id):
                 future.descricao = descricao
                 future.valor = valor
                 future.tipo = tipo
-                future.categoria_id = categoria_id if categoria_id else None
+                future.categoria_id = categoria_id or None
                 future.observacoes = observacoes
 
             db_session.commit()
@@ -111,12 +118,12 @@ def edit(id):
         transaction.tipo = tipo
         transaction.data = data
         transaction.vencimento = vencimento
-        transaction.categoria_id = categoria_id if categoria_id else None
+        transaction.categoria_id = categoria_id or None
         transaction.observacoes = observacoes
         transaction.is_recurring = is_recurring
         transaction.recurrence_frequency = recurrence_frequency if is_recurring else None
         transaction.recurrence_start_date = data if is_recurring else None
-        transaction.recurrence_end_date = recurrence_end_date if is_recurring and recurrence_end_date else None
+        transaction.recurrence_end_date = recurrence_end_date if is_recurring else None
 
         db_session.commit()
 
@@ -188,10 +195,12 @@ def generate_recurring_transactions(transaction, limit=12):
     if not transaction.is_recurring or transaction.tipo != "despesa":
         return 0
 
-    start_date = datetime.strptime(transaction.recurrence_start_date or transaction.data, "%Y-%m-%d")
-    end_date = None
-    if transaction.recurrence_end_date:
-        end_date = datetime.strptime(transaction.recurrence_end_date, "%Y-%m-%d")
+    start_date = transaction.recurrence_start_date or transaction.data
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date = transaction.recurrence_end_date
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, "%Y-%m-%d")
 
     frequency_months = {
         "mensal": 1,
@@ -208,11 +217,10 @@ def generate_recurring_transactions(transaction, limit=12):
 
     for _ in range(limit):
         current_date += relativedelta(months=frequency_months)
-        if end_date and current_date > end_date:
+        if end_date and current_date.date() > end_date:
             break
 
-        date_str = current_date.strftime("%Y-%m-%d")
-        if date_str in existing_dates:
+        if current_date.date() in existing_dates:
             continue
 
         new_transaction = Transaction(
@@ -220,8 +228,8 @@ def generate_recurring_transactions(transaction, limit=12):
             descricao=transaction.descricao,
             valor=transaction.valor,
             tipo=transaction.tipo,
-            data=date_str,
-            vencimento=date_str,
+            data=current_date.date(),
+            vencimento=current_date.date(),
             pago=False,
             categoria_id=transaction.categoria_id,
             observacoes=transaction.observacoes,
