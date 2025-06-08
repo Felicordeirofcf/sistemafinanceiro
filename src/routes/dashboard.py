@@ -37,11 +37,11 @@ def index():
     saldo_mes = total_receitas - total_despesas_pagas
 
     query = text("""
-        SELECT DISTINCT strftime('%Y', transactions.data) AS year
-        FROM transactions
-        WHERE user_id = :user_id
-    """)
-    years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
+    SELECT DISTINCT EXTRACT(YEAR FROM transactions.data::DATE) AS year
+    FROM transactions
+    WHERE user_id = :user_id
+""")
+years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
     available_years = {year[0] for year in years_data if year[0]}
     available_years.add(str(now.year))
     available_years = sorted(list(available_years), reverse=True)
