@@ -4,7 +4,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from models import db_session
-from models.transaction import Transaction
+from src.models.transaction import Transaction
 from models.category import Category
 
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
