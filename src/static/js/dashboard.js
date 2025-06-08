@@ -1,14 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Variável para controlar se os event listeners já foram registrados
     let eventListenersRegistered = false;
-    
+
     // Função para formatar valor em moeda brasileira
     function formatCurrency(value) {
         if (value === null || value === undefined || value === '') return 'R$ 0,00';
-        
+
         const numValue = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : value;
         if (isNaN(numValue)) return 'R$ 0,00';
-        
+
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: 'BRL'
@@ -18,16 +18,16 @@ document.addEventListener('DOMContentLoaded', function() {
     // Função para processar entrada de valor (aceita vírgula como decimal)
     function processCurrencyInput(inputValue) {
         if (!inputValue) return '';
-        
+
         // Remove tudo exceto números, vírgula e ponto
-        let cleaned = inputValue.replace(/[^\d,\.]/g, '');
-        
+        let cleaned = inputValue.replace(/[^\d.,]/g, '');
+
         // Se tem vírgula, usa como separador decimal
         if (cleaned.includes(',')) {
             // Remove pontos (milhares) e mantém apenas a vírgula
             cleaned = cleaned.replace(/\./g, '').replace(',', '.');
         }
-        
+
         return cleaned;
     }
 
@@ -53,746 +53,222 @@ document.addEventListener('DOMContentLoaded', function() {
     // Configurar campos de entrada de valor
     function setupCurrencyInputs() {
         const valorInputs = document.querySelectorAll('input[name="valor"], #valor, #edit-valor');
-        
+
         valorInputs.forEach(input => {
             // Remover listeners existentes para evitar duplicação
             input.removeEventListener('input', handleCurrencyInput);
             input.removeEventListener('blur', handleCurrencyBlur);
             input.removeEventListener('focus', handleCurrencyFocus);
-            
+
             // Adicionar listeners
             input.addEventListener('input', handleCurrencyInput);
             input.addEventListener('blur', handleCurrencyBlur);
             input.addEventListener('focus', handleCurrencyFocus);
+
+            // Formatar valor inicial se existir
+            if (input.value) {
+                input.value = formatCurrency(processCurrencyInput(input.value));
+            }
         });
     }
 
-    function handleCurrencyInput(e) {
-        let value = e.target.value;
-        
-        // Permitir apenas números, vírgula e ponto
-        value = value.replace(/[^\d,\.]/g, '');
-        
-        // Limitar a uma vírgula ou ponto
-        const commaCount = (value.match(/,/g) || []).length;
-        const dotCount = (value.match(/\./g) || []).length;
-        
-        if (commaCount > 1) {
-            value = value.replace(/,(?=.*,)/g, '');
-        }
-        if (dotCount > 1) {
-            value = value.replace(/\.(?=.*\.)/g, '');
-        }
-        
-        e.target.value = value;
+    // Handlers para os eventos de input e blur
+    function handleCurrencyInput(event) {
+        const input = event.target;
+        const caretPos = input.selectionStart;
+        const oldValue = input.value;
+
+        let cleaned = processCurrencyInput(oldValue);
+        input.value = cleaned;
+
+        // Ajustar a posição do cursor
+        const newCaretPos = caretPos - (oldValue.length - cleaned.length);
+        input.setSelectionRange(newCaretPos, newCaretPos);
     }
 
-    function handleCurrencyBlur(e) {
-        let value = e.target.value;
-        if (value.includes(',')) {
-            // Se tem vírgula, converte para ponto para compatibilidade com HTML5
-            e.target.value = value.replace(',', '.');
-        }
+    function handleCurrencyBlur(event) {
+        const input = event.target;
+        input.value = formatCurrency(processCurrencyInput(input.value));
     }
 
-    function handleCurrencyFocus(e) {
-        let value = e.target.value;
-        if (value.includes('.') && !value.includes(',')) {
-            e.target.value = value.replace('.', ',');
-        }
+    function handleCurrencyFocus(event) {
+        const input = event.target;
+        input.value = processCurrencyInput(input.value);
     }
 
-    const tipoReceita = document.getElementById('tipo-receita');
-    const tipoDespesa = document.getElementById('tipo-despesa');
-    const vencimentoGroup = document.getElementById('vencimento-group');
-    const recorrenteGroup = document.getElementById('recorrente-group');
-    const recorrenteCheckbox = document.getElementById('recorrente');
-    const frequenciaGroup = document.getElementById('frequencia-group');
-    const dataFimGroup = document.getElementById('data-fim-group');
-    const pagoGroup = document.getElementById('pago-group');
-
-    function toggleVencimentoAndRecorrente() {
-        if (tipoDespesa && tipoDespesa.checked) {
-            if (vencimentoGroup) vencimentoGroup.style.display = 'block';
-            if (recorrenteGroup) recorrenteGroup.style.display = 'block';
-            if (pagoGroup) pagoGroup.style.display = 'block';
-        } else {
-            if (vencimentoGroup) vencimentoGroup.style.display = 'none';
-            if (recorrenteGroup) recorrenteGroup.style.display = 'none';
-            if (pagoGroup) pagoGroup.style.display = 'none';
-            // Reset campos quando muda para receita
-            if (recorrenteCheckbox) recorrenteCheckbox.checked = false;
-            toggleFrequencia();
-        }
-    }
-
-    function toggleFrequencia() {
-        if (recorrenteCheckbox && recorrenteCheckbox.checked) {
-            if (frequenciaGroup) frequenciaGroup.style.display = 'block';
-            if (dataFimGroup) dataFimGroup.style.display = 'block';
-        } else {
-            if (frequenciaGroup) frequenciaGroup.style.display = 'none';
-            if (dataFimGroup) dataFimGroup.style.display = 'none';
-        }
-    }
-
-    // Event listeners para campos de tipo
-    if (tipoReceita) tipoReceita.addEventListener('change', toggleVencimentoAndRecorrente);
-    if (tipoDespesa) tipoDespesa.addEventListener('change', toggleVencimentoAndRecorrente);
-    if (recorrenteCheckbox) recorrenteCheckbox.addEventListener('change', toggleFrequencia);
-
-    // Inicializar estado
-    toggleVencimentoAndRecorrente();
-    toggleFrequencia();
-
-    // Configurar formatação de moeda
-    formatExistingValues();
-    setupCurrencyInputs();
-
-    // Inicializar DataTables de forma mais robusta
-    function initializeDataTable() {
-        try {
-            // Verificar se jQuery e DataTables estão disponíveis
-            if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
-                console.log('jQuery ou DataTables não estão disponíveis ainda');
-                return;
-            }
-
-            const tableElement = document.getElementById('transactionsTable');
-            if (!tableElement) {
-                console.log('Tabela transactionsTable não encontrada');
-                return;
-            }
-
-            const $table = $('#transactionsTable');
-            
-            // Verificar se a tabela tem estrutura básica necessária
-            const thead = $table.find('thead');
-            const tbody = $table.find('tbody');
-            
-            if (thead.length === 0 || tbody.length === 0) {
-                console.log('Estrutura da tabela incompleta (faltando thead ou tbody)');
-                return;
-            }
-
-            // Destruir DataTable existente de forma mais segura
-            if ($.fn.DataTable.isDataTable('#transactionsTable')) {
-                try {
-                    const existingTable = $('#transactionsTable').DataTable();
-                    existingTable.destroy(true); // true remove também do DOM
-                    console.log('DataTable existente destruído');
-                } catch (destroyError) {
-                    console.warn('Erro ao destruir DataTable existente:', destroyError);
+    // Função para carregar dados do dashboard via AJAX
+    function loadDashboardData(month, year) {
+        const url = `/dashboard_data?month=${month}&year=${year}`;
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            }
-            
-            // Aguardar um momento para garantir que a destruição foi completa
-            setTimeout(() => {
-                try {
-                    // Re-verificar se a tabela ainda existe
-                    const $tableAfterDestroy = $('#transactionsTable');
-                    if ($tableAfterDestroy.length === 0) {
-                        console.log('Tabela não existe mais após destruição');
-                        return;
-                    }
-
-                    const headerCols = $tableAfterDestroy.find('thead th').length;
-                    const bodyRows = $tableAfterDestroy.find('tbody tr').length;
-                    
-                    console.log(`Verificando tabela - Colunas: ${headerCols}, Linhas: ${bodyRows}`);
-                    
-                    // Verificar se tem exatamente 5 colunas conforme especificado
-                    if (headerCols !== 5) {
-                        console.log(`Número incorreto de colunas: ${headerCols} (esperado: 5)`);
-                        return;
-                    }
-                    
-                    // Verificar se há dados reais (não apenas mensagem de "nenhum registro")
-                    const hasRealData = bodyRows > 0 && $tableAfterDestroy.find('tbody tr td[colspan]').length === 0;
-                    
-                    console.log(`Dados reais na tabela: ${hasRealData}`);
-                    
-                    // Configuração do DataTable
-                    const config = {
-                        destroy: true, // Permitir reinicialização
-                        language: {
-                            url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
-                        },
-                        columnDefs: [
-                            { orderable: false, targets: [4] } // Coluna de ações (índice 4) não ordenável
-                        ],
-                        responsive: true,
-                        pageLength: 10,
-                        lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-                        info: hasRealData,
-                        paging: hasRealData,
-                        searching: hasRealData,
-                        autoWidth: false,
-                        processing: false,
-                        serverSide: false
-                    };
-                                       // SOMENTE INICIALIZAR DATATABLE SE HOUVER DADOS REAIS
-                    if (hasRealData) {
-                        // Configuração do DataTable
-                        const config = {
-                            destroy: true, // Permitir reinicialização
-                            language: {
-                                url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
-                            },
-                            columnDefs: [
-                                { orderable: false, targets: [4] } // Coluna de ações (índice 4) não ordenável
-                            ],
-                            responsive: true,
-                            pageLength: 10,
-                            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-                            info: true, // Sempre mostrar info se houver dados
-                            paging: true, // Sempre paginar se houver dados
-                            searching: true, // Sempre pesquisar se houver dados
-                            autoWidth: false,
-                            processing: false,
-                            serverSide: false
-                        };
-                        
-                        config.order = [[1, 'desc']]; // Ordenar por coluna de data (índice 1)
-                        
-                        // Inicializar DataTable
-                        $tableAfterDestroy.DataTable(config);
-                        console.log('DataTable inicializado com sucesso');
-                    } else {
-                        console.log('Nenhum dado real encontrado na tabela, DataTable não será inicializado.');
-                        // Opcional: Remover classes do DataTable para exibir a tabela HTML simples
-                        $tableAfterDestroy.removeClass('dataTable no-footer');
-                        $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
-                    }
-                }
-            }, 150); // Aumentado o timeout para garantir destruição completa
-            
-        } catch (error) {
-            console.warn('Erro ao inicializar DataTable:', error);
-        }
-    }
-
-    // Função única para submissão do formulário
-    async function submitTransactionForm(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const form = e.target;
-        const submitBtn = form.querySelector('button[type="submit"]');
-        
-        // Verificar se já está processando para evitar dupla submissão
-        if (submitBtn.disabled) {
-            return false;
-        }
-        
-        // Validações customizadas
-        const valorInput = document.getElementById('valor');
-        let valor = valorInput ? valorInput.value.replace(',', '.') : '';
-        const descricaoInput = document.getElementById('descricao');
-        const descricao = descricaoInput ? descricaoInput.value.trim() : '';
-        
-        let isValid = true;
-        
-        // Validar valor
-        if (!valor || parseFloat(valor) <= 0) {
-            if (valorInput) valorInput.classList.add('is-invalid');
-            isValid = false;
-        } else {
-            if (valorInput) {
-                valorInput.classList.remove('is-invalid');
-                // Garantir que o valor seja enviado com ponto decimal
-                valorInput.value = valor;
-            }
-        }
-        
-        // Validar descrição
-        if (!descricao) {
-            if (descricaoInput) descricaoInput.classList.add('is-invalid');
-            isValid = false;
-        } else {
-            if (descricaoInput) descricaoInput.classList.remove('is-invalid');
-        }
-        
-        if (!isValid) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Campos obrigatórios',
-                text: 'Por favor, preencha todos os campos obrigatórios corretamente.'
-            });
-            return false;
-        }
-        
-        // Desabilitar botão durante envio
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adicionando...';
-
-        try {
-            const formData = new FormData(form);
-            
-            const response = await fetch(form.action, {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Sucesso!',
-                    text: data.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    // Limpar formulário
-                    form.reset();
-                    // Resetar data para hoje
-                    const dataInput = document.getElementById('data');
-                    const vencimentoInput = document.getElementById('vencimento');
-                    if (dataInput) dataInput.value = new Date().toISOString().split('T')[0];
-                    if (vencimentoInput) vencimentoInput.value = new Date().toISOString().split('T')[0];
-                    // Resetar visibilidade dos campos
-                    toggleVencimentoAndRecorrente();
-                    toggleFrequencia();
-                    // Recarregar página para atualizar dados
-                    location.reload();
-                });
-            } else {
+                return response.json();
+            })
+            .then(data => {
+                updateDashboardUI(data);
+                updateCharts(data);
+                updateCalendar(data);
+                formatExistingValues(); // Reaplicar formatação após carregar novos dados
+                setupCurrencyInputs(); // Reconfigurar inputs após carregar novos dados
+            })
+            .catch(error => {
+                console.error('Erro ao carregar dados do dashboard:', error);
                 Swal.fire({
                     icon: 'error',
-                    title: 'Erro!',
-                    text: data.message
+                    title: 'Erro',
+                    text: 'Não foi possível carregar os dados do dashboard. Tente novamente mais tarde.'
                 });
-            }
-        } catch (error) {
-            console.error('Erro ao enviar formulário:', error);
-            Swal.fire({
-                icon: 'error',
-                title: 'Erro!',
-                text: 'Erro ao adicionar a transação. Tente novamente.'
             });
-        } finally {
-            // Reabilitar botão
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Adicionar Transação';
-        }
-        
-        return false;
     }
 
-    // Registrar event listeners apenas uma vez
-    function registerEventListeners() {
-        if (eventListenersRegistered) {
-            return;
-        }
-        
-        // Event listener para o formulário de transação
-        const form = document.getElementById('form-transacao');
-        if (form) {
-            // Remover listeners existentes
-            form.removeEventListener('submit', submitTransactionForm);
-            // Adicionar listener único
-            form.addEventListener('submit', submitTransactionForm);
-        }
+    // Função para atualizar a UI do dashboard
+    function updateDashboardUI(data) {
+        document.getElementById('total-receitas').textContent = formatCurrency(data.total_receitas);
+        document.getElementById('total-despesas').textContent = formatCurrency(data.total_despesas);
+        document.getElementById('total-pendencias').textContent = formatCurrency(data.total_pendencias);
+        document.getElementById('saldo-atual').textContent = formatCurrency(data.saldo_atual);
 
-        // Event listeners para ações da tabela (usando delegação de eventos)
-        $(document).off('click', '.delete-btn').on('click', '.delete-btn', function() {
-            const transactionId = $(this).data('id');
-            Swal.fire({
-                title: 'Tem certeza?',
-                text: "Você não poderá reverter isso!",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Sim, deletar!',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: `/transactions/delete/${transactionId}`,
-                        method: 'POST',
-                        success: function(response) {
-                            if (response.success) {
-                                Swal.fire(
-                                    'Deletado!',
-                                    'A transação foi deletada.',
-                                    'success'
-                                ).then(() => {
-                                    location.reload();
-                                });
-                            } else {
-                                Swal.fire(
-                                    'Erro!',
-                                    response.message,
-                                    'error'
-                                );
+        // Atualizar tabela de transações
+        const transactionsTableBody = document.getElementById('transactions-table-body');
+        transactionsTableBody.innerHTML = ''; // Limpar tabela existente
+        data.transactions.forEach(transaction => {
+            const row = transactionsTableBody.insertRow();
+            row.innerHTML = `
+                <td>${transaction.data}</td>
+                <td>${transaction.descricao}</td>
+                <td>${transaction.categoria}</td>
+                <td class="currency-value">${formatCurrency(transaction.valor)}</td>
+                <td>${transaction.tipo === 'receita' ? 'Receita' : 'Despesa'}</td>
+                <td>${transaction.status}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary edit-btn" data-id="${transaction.id}" data-type="${transaction.tipo}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-btn" data-id="${transaction.id}" data-type="${transaction.tipo}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    ${transaction.tipo === 'despesa' && transaction.status === 'Pendente' ?
+                        `<button class="btn btn-sm btn-success mark-paid-btn" data-id="${transaction.id}">
+                            <i class="fas fa-check"></i>
+                        </button>` : ''}
+                </td>
+            `;
+        });
+
+        // Atualizar título do período
+        document.getElementById('current-month-year').textContent = data.current_month_year;
+    }
+
+    // Variáveis globais para os gráficos
+    let receitasDespesasChart;
+    let categoriasDespesasChart;
+
+    // Função para atualizar os gráficos
+    function updateCharts(data) {
+        // Gráfico de Receitas vs Despesas
+        const ctxReceitasDespesas = document.getElementById('receitasDespesasChart').getContext('2d');
+        if (receitasDespesasChart) {
+            receitasDespesasChart.destroy();
+        }
+        receitasDespesasChart = new Chart(ctxReceitasDespesas, {
+            type: 'bar',
+            data: {
+                labels: ['Receitas', 'Despesas'],
+                datasets: [{
+                    label: 'Valor',
+                    data: [data.total_receitas, data.total_despesas],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return formatCurrency(value);
                             }
-                        },
-                        error: function() {
-                            Swal.fire(
-                                'Erro!',
-                                'Ocorreu um erro ao deletar a transação.',
-                                'error'
-                            );
                         }
-                    });
-                }
-            });
-        });
-
-        $(document).off('click', '.pay-btn').on('click', '.pay-btn', function() {
-            const transactionId = $(this).data('id');
-            Swal.fire({
-                title: 'Marcar como pago?',
-                text: "Esta despesa será marcada como paga.",
-                icon: 'info',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Sim, marcar como pago!',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    $.ajax({
-                        url: `/transactions/toggle_status/${transactionId}`,
-                        method: 'POST',
-                        success: function(response) {
-                            if (response.success) {
-                                Swal.fire(
-                                    'Pago!',
-                                    'A despesa foi marcada como paga.',
-                                    'success'
-                                ).then(() => {
-                                    location.reload();
-                                });
-                            } else {
-                                Swal.fire(
-                                    'Erro!',
-                                    response.message,
-                                    'error'
-                                );
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return formatCurrency(context.raw);
                             }
-                        },
-                        error: function() {
-                            Swal.fire(
-                                'Erro!',
-                                'Ocorreu um erro ao marcar a despesa como paga.',
-                                'error'
-                            );
                         }
-                    });
+                    }
                 }
-            });
+            }
         });
 
-        eventListenersRegistered = true;
-    }
-
-    // Aguardar carregamento completo antes de inicializar
-    $(document).ready(function() {
-        // Aguardar um pouco mais para garantir que todas as dependências estejam carregadas
-        setTimeout(function() {
-            initializeDataTable();
-            formatExistingValues();
-            registerEventListeners();
-        }, 500);
-    });
-
-    // Aguardar carregamento da janela (fallback)
-    $(window).on('load', function() {
-        setTimeout(function() {
-            // Só reinicializar se ainda não foi inicializado
-            if (!$.fn.DataTable.isDataTable('#transactionsTable')) {
-                initializeDataTable();
-            }
-            formatExistingValues();
-        }, 300);
-    });
-
-    // Handle duplicate transaction
-    $(document).on('click', '.duplicate-btn', function(e) {
-        e.preventDefault();
-        const transactionId = $(this).data('id');
-        
-        Swal.fire({
-            title: 'Duplicar Transação',
-            text: 'Informe o novo valor para a transação duplicada:',
-            input: 'text',
-            inputPlaceholder: 'Ex: 100,50',
-            inputAttributes: {
-                'pattern': '[0-9]+([,\.][0-9]{1,2})?',
-                'title': 'Digite um valor válido (ex: 100,50)'
+        // Gráfico de Despesas por Categoria
+        const ctxCategoriasDespesas = document.getElementById('categoriasDespesasChart').getContext('2d');
+        if (categoriasDespesasChart) {
+            categoriasDespesasChart.destroy();
+        }
+        categoriasDespesasChart = new Chart(ctxCategoriasDespesas, {
+            type: 'pie',
+            data: {
+                labels: data.despesas_por_categoria.map(item => item.categoria),
+                datasets: [{
+                    data: data.despesas_por_categoria.map(item => item.valor),
+                    backgroundColor: [
+                        '#007bff', '#dc3545', '#ffc107', '#28a745', '#6f42c1',
+                        '#20c997', '#fd7e14', '#e83e8c', '#6610f2', '#6c757d'
+                    ],
+                }]
             },
-            showCancelButton: true,
-            confirmButtonText: 'Duplicar',
-            cancelButtonText: 'Cancelar',
-            confirmButtonColor: '#007bff',
-            cancelButtonColor: '#6c757d',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Você precisa informar um valor!';
-                }
-                
-                // Validar formato do valor
-                const cleanValue = value.replace(',', '.');
-                const numValue = parseFloat(cleanValue);
-                
-                if (isNaN(numValue) || numValue <= 0) {
-                    return 'Por favor, digite um valor válido maior que zero!';
-                }
-                
-                return null;
-            }
-        }).then((result) => {
-            if (result.isConfirmed) {
-                const newValue = result.value.replace(',', '.');
-                
-                // Mostrar loading
-                Swal.fire({
-                    title: 'Duplicando transação...',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                
-                // Fazer requisição para duplicar
-                $.ajax({
-                    url: `/transactions/duplicate/${transactionId}`,
-                    method: 'POST',
-                    data: {
-                        new_value: newValue
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Transação Duplicada!',
-                                text: response.message,
-                                showConfirmButton: false,
-                                timer: 1500
-                            }).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Erro!',
-                                text: response.message || 'Erro ao duplicar a transação.'
-                            });
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Erro ao duplicar transação:', error);
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Erro!',
-                            text: 'Erro ao duplicar a transação. Tente novamente.'
-                        });
-                    }
-                });
-            }
-        });
-    });
-
-    // Handle pay transaction
-    $(document).on('click', '.edit-btn', function() {
-        const transactionId = $(this).data('id');
-        
-        // Mostrar loading
-        Swal.fire({
-            title: 'Carregando...',
-            text: 'Buscando dados da transação',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        $.ajax({
-            url: `/transactions/get/${transactionId}`,
-            method: 'GET',
-            success: function(response) {
-                Swal.close();
-                
-                if (response.success) {
-                    const transaction = response.transaction;
-                    
-                    // Preencher campos básicos
-                    $('#edit-transaction-id').val(transaction.id);
-                    $('#edit-valor').val(transaction.valor);
-                    $('#edit-data').val(transaction.data);
-                    $('#edit-descricao').val(transaction.descricao);
-                    
-                    // Configurar tipo de transação
-                    if (transaction.tipo === 'receita') {
-                        $('#edit-tipo-receita').prop('checked', true);
-                        $('#edit-vencimento-group').hide();
-                        $('#edit-pago-group').hide();
-                        $('#edit-recorrente-group').hide();
-                        $('#edit-frequencia-group').hide();
-                    } else {
-                        $('#edit-tipo-despesa').prop('checked', true);
-                        $('#edit-vencimento-group').show();
-                        $('#edit-pago-group').show();
-                        $('#edit-recorrente-group').show();
-                        
-                        // Preencher campos específicos de despesa
-                        $('#edit-vencimento').val(transaction.vencimento || transaction.data);
-                        $('#edit-pago').prop('checked', transaction.pago);
-                        
-                        // Configurar recorrência
-                        if (transaction.is_recurring) {
-                            $('#edit-recorrente').prop('checked', true);
-                            $('#edit-frequencia-group').show();
-                            $('#edit-frequencia').val(transaction.frequencia || 'mensal');
-                        } else {
-                            $('#edit-recorrente').prop('checked', false);
-                            $('#edit-frequencia-group').hide();
+            options: {
+                responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += formatCurrency(context.raw);
+                                return label;
+                            }
                         }
                     }
-                    
-                    // Adicionar event listeners para o modal
-                    setupEditModalListeners();
-                    
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Erro!',
-                        text: response.message || 'Erro ao carregar dados da transação'
-                    });
                 }
-            },
-            error: function(xhr, status, error) {
-                Swal.close();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Erro!',
-                    text: 'Erro ao carregar os dados da transação. Tente novamente.'
-                });
-            }
-        });
-    });
-
-    // Configurar listeners do modal de edição
-    function setupEditModalListeners() {
-        // Controlar visibilidade dos campos baseado no tipo
-        $('#edit-tipo-receita, #edit-tipo-despesa').off('change').on('change', function() {
-            if ($('#edit-tipo-despesa').is(':checked')) {
-                $('#edit-vencimento-group').show();
-                $('#edit-pago-group').show();
-                $('#edit-recorrente-group').show();
-            } else {
-                $('#edit-vencimento-group').hide();
-                $('#edit-pago-group').hide();
-                $('#edit-recorrente-group').hide();
-                $('#edit-frequencia-group').hide();
-                $('#edit-recorrente').prop('checked', false);
-            }
-        });
-
-        // Controlar visibilidade da frequência
-        $('#edit-recorrente').off('change').on('change', function() {
-            if ($(this).is(':checked')) {
-                $('#edit-frequencia-group').show();
-            } else {
-                $('#edit-frequencia-group').hide();
             }
         });
     }
 
-    // Handle edit form submission
-    $('#save-edit-btn').on('click', function() {
-        const form = $('#edit-form-transacao');
-        const transactionId = $('#edit-transaction-id').val();
-        $.ajax({
-            url: `/transactions/edit/${transactionId}`,
-            method: 'POST',
-            data: form.serialize(),
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Sucesso!',
-                        text: response.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
-                        $('#editTransactionModal').modal('hide');
-                        location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Erro!',
-                        text: response.message
-                    });
-                }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Erro!',
-                    text: 'Ocorreu um erro ao salvar as alterações.'
-                });
-            }
-        });
-    });
+    // Variável global para o calendário
+    let calendar;
 
-    // FullCalendar initialization
-    var calendarEl = document.getElementById('calendar');
-    if (calendarEl) {
-        var calendar = new FullCalendar.Calendar(calendarEl, {
+    // Função para atualizar o calendário
+    function updateCalendar(data) {
+        const calendarEl = document.getElementById('calendar');
+        if (calendar) {
+            calendar.destroy();
+        }
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'pt-br',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
             },
-            events: function(fetchInfo, successCallback, failureCallback) {
-                $.ajax({
-                    url: `/dashboard/calendar-data?mes=${new Date().getMonth() + 1}&ano=${new Date().getFullYear()}`,
-                    method: 'GET',
-                    success: function(response) {
-                        const events = response.calendar_data.map(event => ({
-                            id: event.id,
-                            title: event.title,
-                            start: event.start,
-                            color: event.color,
-                            extendedProps: event.extendedProps
-                        }));
-                        successCallback(events);
-                    },
-                    error: function() {
-                        failureCallback();
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Erro!',
-                            text: 'Ocorreu um erro ao carregar os eventos do calendário.'
-                        });
-                    }
-                });
-            },
+            events: data.calendar_events.map(event => ({
+                title: `${event.descricao} - ${formatCurrency(event.valor)}`,
+                start: event.data,
+                color: event.tipo === 'receita' ? '#28a745' : '#dc3545' // Verde para receita, vermelho para despesa
+            })),
             eventClick: function(info) {
-                const event = info.event;
-                const props = event.extendedProps;
-                let details = `
-                    <p><strong>Tipo:</strong> ${props.tipo === 'receita' ? 'Receita' : 'Despesa'}</p>
-                    <p><strong>Valor:</strong> R$ ${(props.valor).toFixed(2).replace('.', ',')}</p>
-                    <p><strong>Data:</strong> ${new Date(event.start).toLocaleDateString('pt-BR')}</p>
-                `;
-                if (props.tipo === 'despesa') {
-                    details += `<p><strong>Status:</strong> ${props.pago ? 'Pago' : 'Pendente'}</p>`;
-                }
-                if (props.is_recurring) {
-                    details += `<p><strong>Recorrente:</strong> Sim</p>`;
-                }
-
                 Swal.fire({
-                    title: event.title,
-                    html: details,
+                    title: info.event.title,
+                    html: `<p>Data: ${moment(info.event.start).format('DD/MM/YYYY')}</p>`,
                     icon: 'info',
                     confirmButtonText: 'Fechar'
                 });
@@ -801,41 +277,347 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar.render();
     }
 
-    // Chart.js initialization
-    function loadChartData() {
-        const currentMonth = new Date().getMonth() + 1;
-        const currentYear = new Date().getFullYear();
-        
-        $.ajax({
-            url: `/dashboard/chart-data?mes=${currentMonth}&ano=${currentYear}`,
-            method: 'GET',
-            success: function(response) {
-                // Bar Chart (Receitas x Despesas)
-                const barCtx = document.getElementById('barChart');
-                if (barCtx) {
-                    new Chart(barCtx, {
-                        type: 'bar',
-                        data: response.bar_chart,
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { display: false }
-                            }
-                        }
+    // Event Listeners para navegação de mês/ano
+    document.getElementById('prevMonth').addEventListener('click', function() {
+        const currentMonthYear = document.getElementById('current-month-year').textContent.split('/');
+        let month = parseInt(currentMonthYear[0]) - 1;
+        let year = parseInt(currentMonthYear[1]);
+        if (month < 1) {
+            month = 12;
+            year--;
+        }
+        loadDashboardData(month, year);
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', function() {
+        const currentMonthYear = document.getElementById('current-month-year').textContent.split('/');
+        let month = parseInt(currentMonthYear[0]) + 1;
+        let year = parseInt(currentMonthYear[1]);
+        if (month > 12) {
+            month = 1;
+            year++;
+        }
+        loadDashboardData(month, year);
+    });
+
+    // Event Listeners para botões de ação na tabela (editar, excluir, marcar como pago)
+    document.getElementById('transactions-table-body').addEventListener('click', function(event) {
+        const target = event.target;
+        const button = target.closest('button');
+
+        if (button) {
+            const id = button.dataset.id;
+            const type = button.dataset.type;
+
+            if (button.classList.contains('edit-btn')) {
+                // Lógica para editar transação
+                fetch(`/${type}/edit/${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Preencher modal de edição com os dados da transação
+                        document.getElementById('edit-id').value = data.id;
+                        document.getElementById('edit-type').value = data.tipo;
+                        document.getElementById('edit-descricao').value = data.descricao;
+                        document.getElementById('edit-valor').value = formatCurrency(data.valor);
+                        document.getElementById('edit-data').value = data.data;
+                        document.getElementById('edit-categoria').value = data.categoria;
+                        document.getElementById('edit-vencimento-group').style.display = data.tipo === 'despesa' ? 'block' : 'none';
+                        document.getElementById('edit-vencimento').value = data.data_vencimento || '';
+                        document.getElementById('edit-status-group').style.display = data.tipo === 'despesa' ? 'block' : 'none';
+                        document.getElementById('edit-status').value = data.status || 'Pendente';
+                        document.getElementById('edit-recorrente-group').style.display = 'none'; // Esconder para edição individual
+                        document.getElementById('edit-frequencia-group').style.display = 'none';
+                        document.getElementById('edit-data-final-group').style.display = 'none';
+
+                        // Abrir modal
+                        const editModal = new bootstrap.Modal(document.getElementById('editTransactionModal'));
+                        editModal.show();
+                    })
+                    .catch(error => {
+                        console.error('Erro ao carregar dados para edição:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erro',
+                            text: 'Não foi possível carregar os dados para edição.'
+                        });
                     });
-                }
+            } else if (button.classList.contains('delete-btn')) {
+                // Lógica para excluir transação
+                Swal.fire({
+                    title: 'Tem certeza?',
+                    text: "Você não poderá reverter isso!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sim, excluir!',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`/${type}/delete/${id}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ id: id, tipo: type })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire(
+                                    'Excluído!',
+                                    'Sua transação foi excluída.',
+                                    'success'
+                                );
+                                // Recarregar dados do dashboard
+                                const currentMonthYear = document.getElementById('current-month-year').textContent.split('/');
+                                loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
+                            } else {
+                                Swal.fire(
+                                    'Erro!',
+                                    data.message || 'Não foi possível excluir a transação.',
+                                    'error'
+                                );
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao excluir transação:', error);
+                            Swal.fire(
+                                'Erro!',
+                                'Não foi possível excluir a transação. Tente novamente.',
+                                'error'
+                            );
+                        });
+                    }
+                });
+            } else if (button.classList.contains('mark-paid-btn')) {
+                // Lógica para marcar despesa como paga
+                Swal.fire({
+                    title: 'Marcar como Paga?',
+                    text: "Esta despesa será marcada como paga.",
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: 'Sim, marcar como paga!',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`/despesa/marcar_paga/${id}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ id: id })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire(
+                                    'Marcada!',
+                                    'Despesa marcada como paga.',
+                                    'success'
+                                );
+                                // Recarregar dados do dashboard
+                                const currentMonthYear = document.getElementById('current-month-year').textContent.split('/');
+                                loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
+                            } else {
+                                Swal.fire(
+                                    'Erro!',
+                                    data.message || 'Não foi possível marcar a despesa como paga.',
+                                    'error'
+                                );
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao marcar despesa como paga:', error);
+                            Swal.fire(
+                                'Erro!',
+                                'Não foi possível marcar a despesa como paga. Tente novamente.',
+                                'error'
+                            );
+                        });
+                    }
+                });
+            }
+        }
+    });
+
+    // Lógica para o formulário de adição/edição de transações
+    document.getElementById('transactionForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const form = event.target;
+        const formData = new FormData(form);
+        const jsonData = {};
+
+        for (let [key, value] of formData.entries()) {
+            jsonData[key] = value;
+        }
+
+        // Processar o valor antes de enviar
+        jsonData['valor'] = processCurrencyInput(jsonData['valor']);
+
+        const isEdit = jsonData['id'] !== '';
+        const url = isEdit ? `/${jsonData['tipo']}/edit/${jsonData['id']}` : '/add_transaction';
+        const method = 'POST';
+
+        fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
             },
-            error: function() {
+            body: JSON.stringify(jsonData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || `HTTP error! status: ${response.status}`); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message
+                });
+                // Fechar modal e recarregar dados
+                const modalElement = document.getElementById('addTransactionModal') || document.getElementById('editTransactionModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
+                form.reset();
+                const currentMonthYear = document.getElementById('current-month-year').textContent.split('/');
+                loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
+            } else {
                 Swal.fire({
                     icon: 'error',
                     title: 'Erro!',
-                    text: 'Ocorreu um erro ao carregar os dados dos gráficos.'
+                    text: data.message || 'Ocorreu um erro ao salvar a transação.'
                 });
             }
+        })
+        .catch(error => {
+            console.error('Erro ao salvar transação:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: error.message || 'Não foi possível salvar a transação. Verifique os dados e tente novamente.'
+            });
         });
+    });
+
+    // Lógica para o formulário de transações recorrentes
+    document.getElementById('recorrenteForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const form = event.target;
+        const formData = new FormData(form);
+        const jsonData = {};
+
+        for (let [key, value] of formData.entries()) {
+            jsonData[key] = value;
+        }
+
+        // Processar o valor antes de enviar
+        jsonData['valor'] = processCurrencyInput(jsonData['valor']);
+
+        fetch('/add_recorrente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(jsonData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || `HTTP error! status: ${response.status}`); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message
+                });
+                // Fechar modal e recarregar dados
+                const modalElement = document.getElementById('addRecorrenteModal');
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                }
+                form.reset();
+                const currentMonthYear = document.getElementById('current-month-year').textContent.split('/');
+                loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: data.message || 'Ocorreu um erro ao salvar a transação recorrente.'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao salvar transação recorrente:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: error.message || 'Não foi possível salvar a transação recorrente. Verifique os dados e tente novamente.'
+            });
+        });
+    });
+
+    // Lógica para alternar campos de despesa/receita no modal de adição
+    document.getElementById('tipo').addEventListener('change', function() {
+        const tipo = this.value;
+        document.getElementById('vencimento-group').style.display = tipo === 'despesa' ? 'block' : 'none';
+        document.getElementById('status-group').style.display = tipo === 'despesa' ? 'block' : 'none';
+        document.getElementById('recorrente-group').style.display = 'block'; // Sempre visível para nova transação
+        document.getElementById('frequencia-group').style.display = document.getElementById('recorrente').checked ? 'block' : 'none';
+        document.getElementById('data-final-group').style.display = document.getElementById('recorrente').checked ? 'block' : 'none';
+    });
+
+    // Lógica para alternar campos de recorrência
+    document.getElementById('recorrente').addEventListener('change', function() {
+        const isRecorrente = this.checked;
+        document.getElementById('frequencia-group').style.display = isRecorrente ? 'block' : 'none';
+        document.getElementById('data-final-group').style.display = isRecorrente ? 'block' : 'none';
+    });
+
+    // Lógica para alternar campos de despesa/receita no modal de edição
+    document.getElementById('edit-tipo').addEventListener('change', function() {
+        const tipo = this.value;
+        document.getElementById('edit-vencimento-group').style.display = tipo === 'despesa' ? 'block' : 'none';
+        document.getElementById('edit-status-group').style.display = tipo === 'despesa' ? 'block' : 'none';
+    });
+
+    // Inicialização
+    function initializeDashboard() {
+        if (!eventListenersRegistered) {
+            // Carregar dados iniciais para o mês e ano atuais
+            const today = new Date();
+            loadDashboardData(today.getMonth() + 1, today.getFullYear());
+            formatExistingValues();
+            setupCurrencyInputs();
+            eventListenersRegistered = true;
+        }
     }
 
-    // Load chart data on page load
-    loadChartData();
+    // Chamar a inicialização quando o DOM estiver completamente carregado
+    initializeDashboard();
 });
 
