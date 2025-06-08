@@ -132,9 +132,9 @@ def dashboard_data():
     ).order_by(Transaction.data).all()
 
     # Calcular totais
-    total_receitas = sum(t.valor / 100 for t in transactions if t.tipo == "receita")  # Converter centavos para reais
-    total_despesas = sum(t.valor / 100 for t in transactions if t.tipo == "despesa")
-    total_despesas_pagas = sum(t.valor / 100 for t in transactions if t.tipo == "despesa" and t.pago)
+    total_receitas = sum(t.valor for t in transactions if t.tipo == "receita")  # Valor já em reais
+    total_despesas = sum(t.valor for t in transactions if t.tipo == "despesa")
+    total_despesas_pagas = sum(t.valor for t in transactions if t.tipo == "despesa" and t.pago)
     total_pendencias = total_despesas - total_despesas_pagas
     saldo_atual = total_receitas - total_despesas_pagas
 
@@ -146,7 +146,7 @@ def dashboard_data():
             "data": t.data.strftime("%d/%m/%Y") if isinstance(t.data, datetime) else str(t.data),
             "descricao": t.descricao,
             "categoria": t.categoria.nome if t.categoria else "Sem categoria",
-            "valor": t.valor / 100,  # Converter centavos para reais
+            "valor": t.valor,  # Valor já em reais
             "tipo": t.tipo,
             "status": "Pago" if t.pago else "Pendente"
         })
@@ -158,7 +158,7 @@ def dashboard_data():
             categoria_nome = t.categoria.nome if t.categoria else "Sem categoria"
             if categoria_nome not in despesas_por_categoria:
                 despesas_por_categoria[categoria_nome] = 0
-            despesas_por_categoria[categoria_nome] += t.valor / 100
+            despesas_por_categoria[categoria_nome] += t.valor
 
     despesas_categoria_list = [
         {"categoria": cat, "valor": valor}
@@ -170,7 +170,7 @@ def dashboard_data():
     for t in transactions:
         calendar_events.append({
             "descricao": t.descricao,
-            "valor": t.valor / 100,
+            "valor": t.valor,
             "data": t.data.strftime("%Y-%m-%d") if isinstance(t.data, datetime) else str(t.data),
             "tipo": t.tipo
         })

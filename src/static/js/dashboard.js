@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Função para formatar valor em moeda brasileira
     function formatCurrency(value) {
-        if (value === null || value === undefined || value === ") return "R$ 0,00";
+        if (value === null || value === undefined || value === '') return 'R$ 0,00';
 
         const numValue = typeof value === "string" ? parseFloat(value.replace(",", ".")) : value;
         if (isNaN(numValue)) return "R$ 0,00";

@@ -25,7 +25,7 @@ def add():
             # Substituir vírgula por ponto para conversão
             valor_str = valor_str.replace(",", ".")
             try:
-                valor = float(valor_str) * 100 if valor_str else 0
+                valor = float(valor_str) if valor_str else 0
             except ValueError:
                 valor = 0
         else:
@@ -129,7 +129,7 @@ def edit(id):
             valor_str = valor_str.replace("R$", "").replace(" ", "").strip()
             valor_str = valor_str.replace(",", ".")
             try:
-                valor = float(valor_str) * 100 if valor_str else 0
+                valor = float(valor_str) if valor_str else 0
             except ValueError:
                 valor = 0
         else:
