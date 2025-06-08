@@ -258,19 +258,20 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Inicializar DataTable
                         $tableAfterDestroy.DataTable(config);
                         console.log('DataTable inicializado com sucesso');
-                   try {
-    setTimeout(() => {
-        if (algumaCoisa) {
-            // ... lógica quando tem dados
-        } else {
-            console.log('Nenhum dado real encontrado na tabela, DataTable não será inicializado.');
-            $tableAfterDestroy.removeClass('dataTable no-footer');
-            $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
+                    } else {
+                        console.log('Nenhum dado real encontrado na tabela, DataTable não será inicializado.');
+                        // Opcional: Remover classes do DataTable para exibir a tabela HTML simples
+                        $tableAfterDestroy.removeClass('dataTable no-footer');
+                        $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
+                    }
+                }
+            }, 150); // Aumentado o timeout para garantir destruição completa
+            
+        } catch (error) {
+            console.warn('Erro ao inicializar DataTable:', error);
         }
-    }, 150); // Aumentado o timeout para garantir destruição completa
-} catch (error) {
-    console.warn('Erro ao inicializar DataTable:', error);
-}
+    }
+
     // Função única para submissão do formulário
     async function submitTransactionForm(e) {
         e.preventDefault();
@@ -702,139 +703,139 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Handle edit form submission
-$('#save-edit-btn').on('click', function () {
-    const form = $('#edit-form-transacao');
-    const transactionId = $('#edit-transaction-id').val();
-
-    $.ajax({
-        url: `/transactions/edit/${transactionId}`,
-        method: 'POST',
-        data: form.serialize(),
-        success: function (response) {
-            if (response.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Sucesso!',
-                    text: response.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => {
-                    $('#editTransactionModal').modal('hide');
-                    location.reload();
-                });
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Erro!',
-                    text: response.message
-                });
-            }
-        },
-        error: function () {
-            Swal.fire({
-                icon: 'error',
-                title: 'Erro!',
-                text: 'Ocorreu um erro ao salvar as alterações.'
-            });
-        }
-    });
-});
-
-// FullCalendar initialization
-var calendarEl = document.getElementById('calendar');
-if (calendarEl) {
-    var calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'pt-br',
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
-        },
-        events: function (fetchInfo, successCallback, failureCallback) {
-            $.ajax({
-                url: `/dashboard/calendar-data?mes=${new Date().getMonth() + 1}&ano=${new Date().getFullYear()}`,
-                method: 'GET',
-                success: function (response) {
-                    const events = response.calendar_data.map(event => ({
-                        id: event.id,
-                        title: event.title,
-                        start: event.start,
-                        color: event.color,
-                        extendedProps: event.extendedProps
-                    }));
-                    successCallback(events);
-                },
-                error: function () {
-                    failureCallback();
+    $('#save-edit-btn').on('click', function() {
+        const form = $('#edit-form-transacao');
+        const transactionId = $('#edit-transaction-id').val();
+        $.ajax({
+            url: `/transactions/edit/${transactionId}`,
+            method: 'POST',
+            data: form.serialize(),
+            success: function(response) {
+                if (response.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Sucesso!',
+                        text: response.message,
+                        showConfirmButton: false,
+                        timer: 1500
+                    }).then(() => {
+                        $('#editTransactionModal').modal('hide');
+                        location.reload();
+                    });
+                } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Erro!',
-                        text: 'Ocorreu um erro ao carregar os eventos do calendário.'
+                        text: response.message
                     });
                 }
-            });
-        },
-        eventClick: function (info) {
-            const event = info.event;
-            const props = event.extendedProps;
-            let details = `
-                <p><strong>Tipo:</strong> ${props.tipo === 'receita' ? 'Receita' : 'Despesa'}</p>
-                <p><strong>Valor:</strong> R$ ${(props.valor).toFixed(2).replace('.', ',')}</p>
-                <p><strong>Data:</strong> ${new Date(event.start).toLocaleDateString('pt-BR')}</p>
-            `;
-            if (props.tipo === 'despesa') {
-                details += `<p><strong>Status:</strong> ${props.pago ? 'Pago' : 'Pendente'}</p>`;
-            }
-            if (props.is_recurring) {
-                details += `<p><strong>Recorrente:</strong> Sim</p>`;
-            }
-
-            Swal.fire({
-                title: event.title,
-                html: details,
-                icon: 'info',
-                confirmButtonText: 'Fechar'
-            });
-        }
-    });
-    calendar.render();
-}
-
-// Chart.js initialization
-function loadChartData() {
-    const currentMonth = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
-
-    $.ajax({
-        url: `/dashboard/chart-data?mes=${currentMonth}&ano=${currentYear}`,
-        method: 'GET',
-        success: function (response) {
-            const barCtx = document.getElementById('barChart');
-            if (barCtx) {
-                new Chart(barCtx, {
-                    type: 'bar',
-                    data: response.bar_chart,
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: false }
-                        }
-                    }
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: 'Ocorreu um erro ao salvar as alterações.'
                 });
             }
-        },
-        error: function () {
-            Swal.fire({
-                icon: 'error',
-                title: 'Erro!',
-                text: 'Ocorreu um erro ao carregar os dados dos gráficos.'
-            });
-        }
+        });
     });
-}
 
-// Load chart data on page load
-loadChartData();
+    // FullCalendar initialization
+    var calendarEl = document.getElementById('calendar');
+    if (calendarEl) {
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'pt-br',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay,listMonth'
+            },
+            events: function(fetchInfo, successCallback, failureCallback) {
+                $.ajax({
+                    url: `/dashboard/calendar-data?mes=${new Date().getMonth() + 1}&ano=${new Date().getFullYear()}`,
+                    method: 'GET',
+                    success: function(response) {
+                        const events = response.calendar_data.map(event => ({
+                            id: event.id,
+                            title: event.title,
+                            start: event.start,
+                            color: event.color,
+                            extendedProps: event.extendedProps
+                        }));
+                        successCallback(events);
+                    },
+                    error: function() {
+                        failureCallback();
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erro!',
+                            text: 'Ocorreu um erro ao carregar os eventos do calendário.'
+                        });
+                    }
+                });
+            },
+            eventClick: function(info) {
+                const event = info.event;
+                const props = event.extendedProps;
+                let details = `
+                    <p><strong>Tipo:</strong> ${props.tipo === 'receita' ? 'Receita' : 'Despesa'}</p>
+                    <p><strong>Valor:</strong> R$ ${(props.valor).toFixed(2).replace('.', ',')}</p>
+                    <p><strong>Data:</strong> ${new Date(event.start).toLocaleDateString('pt-BR')}</p>
+                `;
+                if (props.tipo === 'despesa') {
+                    details += `<p><strong>Status:</strong> ${props.pago ? 'Pago' : 'Pendente'}</p>`;
+                }
+                if (props.is_recurring) {
+                    details += `<p><strong>Recorrente:</strong> Sim</p>`;
+                }
 
-}); // fecha o addEventListener('DOMContentLoaded')
+                Swal.fire({
+                    title: event.title,
+                    html: details,
+                    icon: 'info',
+                    confirmButtonText: 'Fechar'
+                });
+            }
+        });
+        calendar.render();
+    }
+
+    // Chart.js initialization
+    function loadChartData() {
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        
+        $.ajax({
+            url: `/dashboard/chart-data?mes=${currentMonth}&ano=${currentYear}`,
+            method: 'GET',
+            success: function(response) {
+                // Bar Chart (Receitas x Despesas)
+                const barCtx = document.getElementById('barChart');
+                if (barCtx) {
+                    new Chart(barCtx, {
+                        type: 'bar',
+                        data: response.bar_chart,
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false }
+                            }
+                        }
+                    });
+                }
+            },
+            error: function() {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: 'Ocorreu um erro ao carregar os dados dos gráficos.'
+                });
+            }
+        });
+    }
+
+    // Load chart data on page load
+    loadChartData();
+});
+
