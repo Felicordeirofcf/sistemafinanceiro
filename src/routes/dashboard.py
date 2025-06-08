@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
-from datetime import datetime, timedelta
-from sqlalchemy import or_, text
+from datetime import datetime
+from sqlalchemy import text
 
 from src.models import db_session
 from src.models.transaction import Transaction
@@ -36,13 +36,15 @@ def index():
     total_despesas_pendentes = total_despesas - total_despesas_pagas
     saldo_mes = total_receitas - total_despesas_pagas
 
+    # Coleta de anos distintos com base na data das transações
     query = text("""
-    SELECT DISTINCT EXTRACT(YEAR FROM transactions.data::DATE) AS year
-    FROM transactions
-    WHERE user_id = :user_id
-""")
-years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
-    available_years = {year[0] for year in years_data if year[0]}
+        SELECT DISTINCT EXTRACT(YEAR FROM transactions.data::DATE) AS year
+        FROM transactions
+        WHERE user_id = :user_id
+    """)
+    years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
+
+    available_years = {str(int(year[0])) for year in years_data if year[0]}
     available_years.add(str(now.year))
     available_years = sorted(list(available_years), reverse=True)
 
@@ -52,7 +54,30 @@ years_data = db_session.execute(query, {"user_id": current_user.id}).fetchall()
     ]
     month_name = month_names[selected_month - 1] if 1 <= selected_month <= 12 else f"Mês {selected_month}"
 
+    # Dados para o calendáario
     calendar_data = []
+    for transaction in transactions:
+        calendar_data.append({
+            "title": f"{transaction.tipo.capitalize()}: R$ {transaction.valor:.2f}",
+            "start": transaction.data.strftime("%Y-%m-%d"),
+            "color": "#28a745" if transaction.tipo == "receita" else "#dc3545"
+        })
+
+    return render_template("dashboard/index.html", **{
+        "transactions": transactions,
+        "total_receitas": total_receitas,
+        "total_despesas": total_despesas,
+        "total_despesas_pagas": total_despesas_pagas,
+        "total_despesas_pendentes": total_despesas_pendentes,
+        "saldo_mes": saldo_mes,
+        "selected_month": selected_month,
+        "selected_year": selected_year,
+        "month_name": month_name,
+        "available_years": available_years,
+        "calendar_data": calendar_data
+    }
+    )
+
 
     for transaction in transactions:
         # Usar cores padrão baseadas no tipo de transação
