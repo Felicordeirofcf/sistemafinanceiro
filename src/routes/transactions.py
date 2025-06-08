@@ -9,6 +9,65 @@ from src.models.category import Category
 
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
 
+# ----------------------------- ADICIONAR TRANSAÇÃO -----------------------------
+
+@transactions_bp.route("/add", methods=["POST"])
+@login_required
+def add():
+    """Adiciona uma nova transação"""
+    descricao = request.form.get("descricao")
+    valor_str = request.form.get("valor", "0").replace(".", "").replace(",", "")
+    valor = int(valor_str) if valor_str.isdigit() else 0
+    tipo = request.form.get("tipo")
+    data_str = request.form.get("data")
+    vencimento_str = request.form.get("vencimento") if tipo == "despesa" else None
+    categoria_id = request.form.get("categoria_id")
+    observacoes = request.form.get("observacoes", "")
+
+    try:
+        data = datetime.strptime(data_str, "%Y-%m-%d").date() if data_str else None
+        vencimento = datetime.strptime(vencimento_str, "%Y-%m-%d").date() if vencimento_str else None
+    except ValueError:
+        flash("Formato de data inválido.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    is_recurring = request.form.get("is_recurring") == "on"
+    recurrence_frequency = request.form.get("recurrence_frequency")
+    recurrence_end_date_str = request.form.get("recurrence_end_date")
+    try:
+        recurrence_end_date = datetime.strptime(recurrence_end_date_str, "%Y-%m-%d").date() if recurrence_end_date_str else None
+    except ValueError:
+        recurrence_end_date = None
+
+    if not descricao or not valor or not tipo or not data:
+        flash("Todos os campos obrigatórios devem ser preenchidos.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    transaction = Transaction(
+        user_id=current_user.id,
+        descricao=descricao,
+        valor=valor,
+        tipo=tipo,
+        data=data,
+        vencimento=vencimento,
+        pago=False if tipo == "despesa" else True,
+        categoria_id=categoria_id if categoria_id else None,
+        observacoes=observacoes,
+        is_recurring=is_recurring,
+        recurrence_frequency=recurrence_frequency if is_recurring else None,
+        recurrence_start_date=data if is_recurring else None,
+        recurrence_end_date=recurrence_end_date if is_recurring else None
+    )
+
+    db_session.add(transaction)
+    db_session.commit()
+
+    if is_recurring and tipo == "despesa":
+        generate_recurring_transactions(transaction)
+
+    flash("Transação adicionada com sucesso!", "success")
+    return redirect(url_for("dashboard.index"))
+
 # ----------------------------- EXCLUIR TRANSAÇÃO -----------------------------
 
 @transactions_bp.route("/delete/<int:id>", methods=["POST"])
@@ -16,7 +75,6 @@ transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions"
 def delete(id):
     """Exclui uma transação"""
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
-
     if not transaction:
         return jsonify({"success": False, "message": "Transação não encontrada."}), 404
 
