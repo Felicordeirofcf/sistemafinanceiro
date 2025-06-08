@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
+from sqlalchemy.orm import relationship  # <-- IMPORTANTE
 from src.models import Base
 
 class User(Base, UserMixin):
@@ -13,6 +14,9 @@ class User(Base, UserMixin):
     email = Column(String(120), unique=True, nullable=False)
     password_hash = Column(String(256), nullable=True)  # Suporte a login por senha ou OAuth
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # RELACIONAMENTO COM CATEGORIES
+    categories = relationship("Category", back_populates="user")
 
     def __init__(self, username, email, password=None):
         self.username = username
