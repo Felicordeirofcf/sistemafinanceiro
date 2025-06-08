@@ -75,8 +75,7 @@ def index():
         "month_name": month_name,
         "available_years": available_years,
         "calendar_data": calendar_data
-    }
-    )
+    })
 
 
     for transaction in transactions:
