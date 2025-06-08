@@ -61,23 +61,22 @@ for transaction in transactions:
     calendar_data.append({
         "title": f"{transaction.tipo.capitalize()}: R$ {transaction.valor:.2f}",
         "start": transaction.data.strftime("%Y-%m-%d") if isinstance(transaction.data, datetime) else str(transaction.data),
-        "color": "#28a745" if transaction.tipo == "receita" else "#dc3545"
+        "color": "#28a745" if transaction.tipo == "receita" else "#dc3545",
     })
 
-    return render_template("dashboard/index.html", **{
-        "transactions": transactions,
-        "total_receitas": total_receitas,
-        "total_despesas": total_despesas,
-        "total_despesas_pagas": total_despesas_pagas,
-        "total_despesas_pendentes": total_despesas_pendentes,
-        "saldo_mes": saldo_mes,
-        "selected_month": selected_month,
-        "selected_year": selected_year,
-        "month_name": month_name,
-        "available_years": available_years,
-        "calendar_data": calendar_data
-    })
-
+return render_template("dashboard/index.html", **{
+    "transactions": transactions,
+    "total_receitas": total_receitas,
+    "total_despesas": total_despesas,
+    "total_despesas_pagas": total_despesas_pagas,
+    "total_despesas_pendentes": total_despesas_pendentes,
+    "saldo_mes": saldo_mes,
+    "selected_month": selected_month,
+    "selected_year": selected_year,
+    "month_name": month_name,
+    "available_years": available_years,
+    "calendar_data": calendar_data,
+})
 
     for transaction in transactions:
         # Usar cores padrão baseadas no tipo de transação
