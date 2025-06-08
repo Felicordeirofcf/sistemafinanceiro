@@ -83,7 +83,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Ajustar a posição do cursor
         const newCaretPos = caretPos - (oldValue.length - cleaned.length);
-        input.setSelectionRange(newCaretPos, newCaretPos);
+        if (input.setSelectionRange) {
+            input.setSelectionRange(newCaretPos, newCaretPos);
+        }
     }
 
     function handleCurrencyBlur(event) {
@@ -335,343 +337,228 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // Event Listeners para botões de ação na tabela (editar, excluir, marcar como pago)
-    const transactionsTableBody = document.getElementById("transactions-table-body");
-    if (transactionsTableBody) {
-        transactionsTableBody.addEventListener("click", function(event) {
-            const target = event.target;
-            const button = target.closest("button");
-
-            if (button) {
-                const id = button.dataset.id;
-                const type = button.dataset.type;
-
-                if (button.classList.contains("edit-btn")) {
-                    // Lógica para editar transação
-                    fetch(`/${type}/edit/${id}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            // Preencher modal de edição com os dados da transação
-                            document.getElementById("edit-id").value = data.id;
-                            document.getElementById("edit-type").value = data.tipo;
-                            document.getElementById("edit-descricao").value = data.descricao;
-                            document.getElementById("edit-valor").value = formatCurrency(data.valor);
-                            document.getElementById("edit-data").value = data.data;
-                            document.getElementById("edit-categoria").value = data.categoria;
-                            document.getElementById("edit-vencimento-group").style.display = data.tipo === "despesa" ? "block" : "none";
-                            document.getElementById("edit-vencimento").value = data.data_vencimento || "";
-                            document.getElementById("edit-status-group").style.display = data.tipo === "despesa" ? "block" : "none";
-                            document.getElementById("edit-status").value = data.status || "Pendente";
-                            document.getElementById("edit-recorrente-group").style.display = "none"; // Esconder para edição individual
-                            document.getElementById("edit-frequencia-group").style.display = "none";
-                            document.getElementById("edit-data-final-group").style.display = "none";
-
-                            // Abrir modal
-                            const editModal = new bootstrap.Modal(document.getElementById("editTransactionModal"));
-                            editModal.show();
-                        })
-                        .catch(error => {
-                            console.error("Erro ao carregar dados para edição:", error);
-                            Swal.fire({
-                                icon: "error",
-                                title: "Erro",
-                                text: "Não foi possível carregar os dados para edição."
-                            });
+    // Configurar formulário de transação para AJAX
+    function setupTransactionForm() {
+        const form = document.getElementById("form-transacao");
+        if (form) {
+            form.addEventListener("submit", function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Obter dados do formulário
+                const formData = new FormData(form);
+                
+                // Converter valor formatado para decimal
+                const valorInput = document.getElementById("valor");
+                if (valorInput && valorInput.value) {
+                    const valorLimpo = processCurrencyInput(valorInput.value);
+                    formData.set("valor", valorLimpo);
+                }
+                
+                // Enviar via AJAX
+                fetch(form.action, {
+                    method: "POST",
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            icon: "success",
+                            title: "Sucesso",
+                            text: data.message,
+                            timer: 2000,
+                            showConfirmButton: false
                         });
-                } else if (button.classList.contains("delete-btn")) {
-                    // Lógica para excluir transação
-                    Swal.fire({
-                        title: "Tem certeza?",
-                        text: "Você não poderá reverter isso!",
-                        icon: "warning",
-                        showCancelButton: true,
-                        confirmButtonColor: "#3085d6",
-                        cancelButtonColor: "#d33",
-                        confirmButtonText: "Sim, excluir!",
-                        cancelButtonText: "Cancelar"
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            fetch(`/${type}/delete/${id}`, {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({ id: id, tipo: type })
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error(`HTTP error! status: ${response.status}`);
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                if (data.success) {
-                                    Swal.fire(
-                                        "Excluído!",
-                                        "Sua transação foi excluída.",
-                                        "success"
-                                    );
-                                    // Recarregar dados do dashboard
-                                    const currentMonthYear = document.getElementById("current-month-year").textContent.split("/");
-                                    loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
-                                } else {
-                                    Swal.fire(
-                                        "Erro!",
-                                        data.message || "Não foi possível excluir a transação.",
-                                        "error"
-                                    );
-                                }
-                            })
-                            .catch(error => {
-                                console.error("Erro ao excluir transação:", error);
-                                Swal.fire(
-                                    "Erro!",
-                                    "Não foi possível excluir a transação. Tente novamente.",
-                                    "error"
-                                );
-                            });
-                        }
-                    });
-                } else if (button.classList.contains("mark-paid-btn")) {
-                    // Lógica para marcar despesa como paga
-                    Swal.fire({
-                        title: "Marcar como Paga?",
-                        text: "Esta despesa será marcada como paga.",
-                        icon: "info",
-                        showCancelButton: true,
-                        confirmButtonColor: "#3085d6",
-                        cancelButtonColor: "#d33",
-                        confirmButtonText: "Sim, marcar como paga!",
-                        cancelButtonText: "Cancelar"
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            fetch(`/despesa/marcar_paga/${id}`, {
-                                method: "POST",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({ id: id })
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error(`HTTP error! status: ${response.status}`);
-                                }
-                                return response.json();
-                            })
-                            .then(data => {
-                                if (data.success) {
-                                    Swal.fire(
-                                        "Marcada!",
-                                        "Despesa marcada como paga.",
-                                        "success"
-                                    );
-                                    // Recarregar dados do dashboard
-                                    const currentMonthYear = document.getElementById("current-month-year").textContent.split("/");
-                                    loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
-                                } else {
-                                    Swal.fire(
-                                        "Erro!",
-                                        data.message || "Não foi possível marcar a despesa como paga.",
-                                        "error"
-                                    );
-                                }
-                            })
-                            .catch(error => {
-                                console.error("Erro ao marcar despesa como paga:", error);
-                                Swal.fire(
-                                    "Erro!",
-                                    "Não foi possível marcar a despesa como paga. Tente novamente.",
-                                    "error"
-                                );
-                            });
-                        }
-                    });
-                }
-            }
-        });
-    }
-
-    // Lógica para o formulário de adição/edição de transações
-    const transactionForm = document.getElementById("transactionForm");
-    if (transactionForm) {
-        transactionForm.addEventListener("submit", function(event) {
-            event.preventDefault();
-
-            const form = event.target;
-            const formData = new FormData(form);
-            const jsonData = {};
-
-            for (let [key, value] of formData.entries()) {
-                jsonData[key] = value;
-            }
-
-            // Processar o valor antes de enviar
-            jsonData["valor"] = processCurrencyInput(jsonData["valor"]);
-
-            const isEdit = jsonData["id"] !== "";
-            const url = isEdit ? `/${jsonData["tipo"]}/edit/${jsonData["id"]}` : "/add_transaction";
-            const method = "POST";
-
-            fetch(url, {
-                method: method,
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(jsonData)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.message || `HTTP error! status: ${response.status}`); });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: "success",
-                        title: "Sucesso!",
-                        text: data.message
-                    });
-                    // Fechar modal e recarregar dados
-                    const modalElement = document.getElementById("addTransactionModal") || document.getElementById("editTransactionModal");
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
+                        
+                        // Limpar formulário
+                        form.reset();
+                        
+                        // Recarregar dados do dashboard
+                        const currentMonth = new Date().getMonth() + 1;
+                        const currentYear = new Date().getFullYear();
+                        loadDashboardData(currentMonth, currentYear);
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Erro",
+                            text: data.message || "Erro ao adicionar transação"
+                        });
                     }
-                    form.reset();
-                    const currentMonthYear = document.getElementById("current-month-year").textContent.split("/");
-                    loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
-                } else {
+                })
+                .catch(error => {
+                    console.error("Erro ao enviar formulário:", error);
                     Swal.fire({
                         icon: "error",
-                        title: "Erro!",
-                        text: data.message || "Ocorreu um erro ao salvar a transação."
+                        title: "Erro",
+                        text: "Erro ao processar a solicitação"
                     });
-                }
-            })
-            .catch(error => {
-                console.error("Erro ao salvar transação:", error);
-                Swal.fire({
-                    icon: "error",
-                    title: "Erro",
-                    text: error.message || "Não foi possível salvar a transação. Verifique os dados e tente novamente."
                 });
             });
-        });
-    }
-
-    // Lógica para o formulário de transações recorrentes
-    const recorrenteForm = document.getElementById("recorrenteForm");
-    if (recorrenteForm) {
-        recorrenteForm.addEventListener("submit", function(event) {
-            event.preventDefault();
-
-            const form = event.target;
-            const formData = new FormData(form);
-            const jsonData = {};
-
-            for (let [key, value] of formData.entries()) {
-                jsonData[key] = value;
-            }
-
-            // Processar o valor antes de enviar
-            jsonData["valor"] = processCurrencyInput(jsonData["valor"]);
-
-            fetch("/add_recorrente", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(jsonData)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(err => { throw new Error(err.message || `HTTP error! status: ${response.status}`); });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        icon: "success",
-                        title: "Sucesso!",
-                        text: data.message
-                    });
-                    // Fechar modal e recarregar dados
-                    const modalElement = document.getElementById("addRecorrenteModal");
-                    const modal = bootstrap.Modal.getInstance(modalElement);
-                    if (modal) {
-                        modal.hide();
-                    }
-                    form.reset();
-                    const currentMonthYear = document.getElementById("current-month-year").textContent.split("/");
-                    loadDashboardData(parseInt(currentMonthYear[0]), parseInt(currentMonthYear[1]));
-                } else {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Erro!",
-                        text: data.message || "Ocorreu um erro ao salvar a transação recorrente."
-                    });
-                }
-            })
-            .catch(error => {
-                console.error("Erro ao salvar transação recorrente:", error);
-                Swal.fire({
-                    icon: "error",
-                    title: "Erro",
-                    text: error.message || "Não foi possível salvar a transação recorrente. Verifique os dados e tente novamente."
-                });
-            });
-        });
-    }
-
-    // Lógica para alternar campos de despesa/receita no modal de adição
-    const tipoSelect = document.getElementById("tipo");
-    if (tipoSelect) {
-        tipoSelect.addEventListener("change", function() {
-            const tipo = this.value;
-            document.getElementById("vencimento-group").style.display = tipo === "despesa" ? "block" : "none";
-            document.getElementById("status-group").style.display = tipo === "despesa" ? "block" : "none";
-            document.getElementById("recorrente-group").style.display = "block"; // Sempre visível para nova transação
-            const recorrenteCheckbox = document.getElementById("recorrente");
-            document.getElementById("frequencia-group").style.display = recorrenteCheckbox && recorrenteCheckbox.checked ? "block" : "none";
-            document.getElementById("data-final-group").style.display = recorrenteCheckbox && recorrenteCheckbox.checked ? "block" : "none";
-        });
-    }
-
-    // Lógica para alternar campos de recorrência
-    const recorrenteCheckbox = document.getElementById("recorrente");
-    if (recorrenteCheckbox) {
-        recorrenteCheckbox.addEventListener("change", function() {
-            const isRecorrente = this.checked;
-            document.getElementById("frequencia-group").style.display = isRecorrente ? "block" : "none";
-            document.getElementById("data-final-group").style.display = isRecorrente ? "block" : "none";
-        });
-    }
-
-    // Lógica para alternar campos de despesa/receita no modal de edição
-    const editTipoSelect = document.getElementById("edit-tipo");
-    if (editTipoSelect) {
-        editTipoSelect.addEventListener("change", function() {
-            const tipo = this.value;
-            document.getElementById("edit-vencimento-group").style.display = tipo === "despesa" ? "block" : "none";
-            document.getElementById("edit-status-group").style.display = tipo === "despesa" ? "block" : "none";
-        });
-    }
-
-    // Inicialização
-    function initializeDashboard() {
-        if (!eventListenersRegistered) {
-            // Carregar dados iniciais para o mês e ano atuais
-            const today = new Date();
-            loadDashboardData(today.getMonth() + 1, today.getFullYear());
-            formatExistingValues();
-            setupCurrencyInputs();
-            eventListenersRegistered = true;
         }
     }
 
-    // Chamar a inicialização quando o DOM estiver completamente carregado
-    initializeDashboard();
+    // Event Listeners para botões de ação na tabela (editar, excluir, marcar como pago)
+    function setupTableEventListeners() {
+        // Usar delegação de eventos para elementos dinâmicos
+        $(document).on("click", ".edit-btn", function() {
+            const id = $(this).data("id");
+            const type = $(this).data("type");
+            
+            // Lógica para editar transação
+            fetch(`/${type}/edit/${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Preencher modal de edição com os dados da transação
+                    document.getElementById("edit-id").value = data.id;
+                    document.getElementById("edit-type").value = data.tipo;
+                    document.getElementById("edit-descricao").value = data.descricao;
+                    document.getElementById("edit-valor").value = formatCurrency(data.valor);
+                    document.getElementById("edit-data").value = data.data;
+                    document.getElementById("edit-categoria").value = data.categoria;
+                    
+                    // Abrir modal
+                    const editModal = new bootstrap.Modal(document.getElementById("editTransactionModal"));
+                    editModal.show();
+                })
+                .catch(error => {
+                    console.error("Erro ao carregar dados para edição:", error);
+                    Swal.fire({
+                        icon: "error",
+                        title: "Erro",
+                        text: "Erro ao carregar dados para edição"
+                    });
+                });
+        });
+
+        $(document).on("click", ".delete-btn", function() {
+            const id = $(this).data("id");
+            const type = $(this).data("type");
+            
+            Swal.fire({
+                title: "Tem certeza?",
+                text: "Esta ação não pode ser desfeita!",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33",
+                cancelButtonColor: "#3085d6",
+                confirmButtonText: "Sim, excluir!",
+                cancelButtonText: "Cancelar"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/${type}/delete/${id}`, {
+                        method: "DELETE"
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: "success",
+                                title: "Excluído!",
+                                text: data.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            });
+                            
+                            // Recarregar dados do dashboard
+                            const currentMonth = new Date().getMonth() + 1;
+                            const currentYear = new Date().getFullYear();
+                            loadDashboardData(currentMonth, currentYear);
+                        } else {
+                            Swal.fire({
+                                icon: "error",
+                                title: "Erro",
+                                text: data.message || "Erro ao excluir transação"
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Erro ao excluir transação:", error);
+                        Swal.fire({
+                            icon: "error",
+                            title: "Erro",
+                            text: "Erro ao processar a solicitação"
+                        });
+                    });
+                }
+            });
+        });
+
+        $(document).on("click", ".mark-paid-btn", function() {
+            const id = $(this).data("id");
+            
+            fetch(`/despesa/mark-paid/${id}`, {
+                method: "POST"
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Sucesso",
+                        text: data.message,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                    
+                    // Recarregar dados do dashboard
+                    const currentMonth = new Date().getMonth() + 1;
+                    const currentYear = new Date().getFullYear();
+                    loadDashboardData(currentMonth, currentYear);
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Erro",
+                        text: data.message || "Erro ao marcar como pago"
+                    });
+                }
+            })
+            .catch(error => {
+                console.error("Erro ao marcar como pago:", error);
+                Swal.fire({
+                    icon: "error",
+                    title: "Erro",
+                    text: "Erro ao processar a solicitação"
+                });
+            });
+        });
+    }
+
+    // Configurar filtros de mês/ano
+    function setupFilters() {
+        const filterButton = document.querySelector("button[type='submit']");
+        if (filterButton) {
+            filterButton.addEventListener("click", function(e) {
+                e.preventDefault();
+                
+                const mesSelect = document.getElementById("mes");
+                const anoSelect = document.getElementById("ano");
+                
+                if (mesSelect && anoSelect) {
+                    const month = parseInt(mesSelect.value);
+                    const year = parseInt(anoSelect.value);
+                    
+                    loadDashboardData(month, year);
+                }
+            });
+        }
+    }
+
+    // Inicialização quando o DOM estiver carregado
+    function init() {
+        formatExistingValues();
+        setupCurrencyInputs();
+        setupTransactionForm();
+        setupTableEventListeners();
+        setupFilters();
+        
+        // Carregar dados iniciais do dashboard
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        loadDashboardData(currentMonth, currentYear);
+    }
+
+    // Chamar inicialização
+    init();
 });
 
