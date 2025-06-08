@@ -9,7 +9,7 @@ from src.models.category import Category
 
 transactions_bp = Blueprint("transactions", __name__, url_prefix="/transactions")
 
-# ----------------------------- ADICIONAR TRANSAÇÃO -----------------------------
+# ----------------------------- EXCLUIR TRANSAÇÃO -----------------------------
 
 @transactions_bp.route("/delete/<int:id>", methods=["POST"])
 @login_required
@@ -25,7 +25,6 @@ def delete(id):
 
     if is_recurring and delete_all_future:
         parent_id = transaction.parent_transaction_id if transaction.parent_transaction_id else transaction.id
-
         today = datetime.now().date()
         future_transactions = Transaction.query.filter(
             Transaction.parent_transaction_id == parent_id,
@@ -44,7 +43,6 @@ def delete(id):
         db_session.delete(transaction)
         db_session.commit()
         return jsonify({"success": True, "message": "Transação excluída com sucesso!"})
-    return redirect(url_for("dashboard.index"))
 
 # ----------------------------- EDITAR TRANSAÇÃO -----------------------------
 
@@ -126,45 +124,6 @@ def edit(id):
             generate_recurring_transactions(transaction)
 
         flash("Transação atualizada com sucesso!", "success")
-
-    return redirect(url_for("dashboard.index"))
-
-# ----------------------------- EXCLUIR TRANSAÇÃO -----------------------------
-
-@transactions_bp.route("/delete/<int:id>")
-@login_required
-def delete(id):
-    """Exclui uma transação"""
-    transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
-
-    if not transaction:
-        flash("Transação não encontrada.", "danger")
-        return redirect(url_for("dashboard.index"))
-
-    is_recurring = transaction.is_recurring or transaction.parent_transaction_id
-    delete_all_future = request.args.get("delete_all_future") == "true"
-
-    if is_recurring and delete_all_future:
-        parent_id = transaction.parent_transaction_id if transaction.parent_transaction_id else transaction.id
-
-        today = datetime.now().strftime("%Y-%m-%d")
-        future_transactions = Transaction.query.filter(
-            Transaction.parent_transaction_id == parent_id,
-            Transaction.data >= today
-        ).all()
-
-        for future in future_transactions:
-            db_session.delete(future)
-
-        if transaction.id == parent_id:
-            db_session.delete(transaction)
-
-        db_session.commit()
-        flash("Todas as ocorrências futuras foram excluídas com sucesso!", "success")
-    else:
-        db_session.delete(transaction)
-        db_session.commit()
-        flash("Transação excluída com sucesso!", "success")
 
     return redirect(url_for("dashboard.index"))
 
@@ -275,7 +234,7 @@ def generate_recurring_transactions(transaction, limit=12):
     db_session.commit()
     return count
 
-# ----------------------------- ROTA OPCIONAL: CARREGAR MODAL -----------------------------
+# ----------------------------- MODAL DE TRANSAÇÃO -----------------------------
 
 @transactions_bp.route("/modal")
 @login_required
