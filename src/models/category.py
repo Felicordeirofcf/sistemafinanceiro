@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from src.models import Base
 
 class Category(Base):
-    """Modelo de categoria para transações"""
+    """Modelo de categoria para transações (removido do uso ativo)"""
     __tablename__ = 'categories'
 
     id = Column(Integer, primary_key=True)
@@ -13,15 +13,14 @@ class Category(Base):
     cor = Column(String(7), default='#3498db')  # Formato hexadecimal (#RRGGBB)
     icone = Column(String(30), default='fa-tag')  # Ícone FontAwesome
 
-    # Relacionamentos
-    user = relationship("User", back_populates="categories")  # Correção aqui
+    # As relações abaixo podem ser mantidas apenas por compatibilidade com o banco
+    user = relationship("User", back_populates="categories")
     transacoes = relationship("Transaction", back_populates="categoria")
 
     def __repr__(self):
         return f'<Category {self.nome}>'
-    
+
     def to_dict(self):
-        """Converte o objeto para um dicionário"""
         return {
             'id': self.id,
             'nome': self.nome,
