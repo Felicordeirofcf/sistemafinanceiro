@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Opcional: Remover classes do DataTable para exibir a tabela HTML simples
                         $tableAfterDestroy.removeClass('dataTable no-footer');
                         $tableAfterDestroy.find('.dataTables_wrapper').remove(); // Remover wrapper se existir
-                    }nnerError);
+                    }
                 }
             }, 150); // Aumentado o timeout para garantir destruição completa
             
