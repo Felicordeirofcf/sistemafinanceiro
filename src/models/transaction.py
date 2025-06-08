@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, Text, Date
 from sqlalchemy.orm import relationship
-from models import Base
+from src.models import Base
 
 class Transaction(Base):
     """Modelo para transações financeiras"""

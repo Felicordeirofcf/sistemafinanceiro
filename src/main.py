@@ -21,10 +21,10 @@ from src.models.transaction import Transaction
 from src.models.category import Category
 
 
-from routes.auth import auth_bp
-from routes.transactions import transactions_bp
-from routes.dashboard import dashboard_bp
-from routes.alerts import alerts_bp
+from src.routes.auth import auth_bp
+from src.routes.transactions import transactions_bp
+from src.routes.dashboard import dashboard_bp
+from src.routes.alerts import alerts_bp
 
 print("DEBUG: Modelos e rotas importados.")
 

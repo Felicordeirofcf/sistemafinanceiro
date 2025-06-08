@@ -47,9 +47,9 @@ def test_connection():
 def init_db():
     print("[INIT] Iniciando criação de tabelas com init_db()")
     try:
-        import models.user
-        import models.transaction
-        import models.category
+        import src.models.user
+        import src.models.transaction
+        import src.models.category
         Base.metadata.create_all(bind=engine)
         print("[INIT] Tabelas criadas com sucesso.")
     except Exception as e:

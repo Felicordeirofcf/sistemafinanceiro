@@ -2,9 +2,9 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from sqlalchemy.exc import IntegrityError
-from models import db_session
-from models.user import User
-from models.category import Category
+from src.models import db_session
+from src.models.user import User
+from src.models.category import Category
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 

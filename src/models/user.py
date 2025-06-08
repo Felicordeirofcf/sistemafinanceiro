@@ -3,7 +3,7 @@ from sqlalchemy.sql import func
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from sqlalchemy.orm import relationship  # <-- IMPORTANTE
-from models import Base
+from src.models import Base
 
 class User(Base, UserMixin):
     """Modelo de usuário para autenticação e relacionamento com dados financeiros"""

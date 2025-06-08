@@ -3,14 +3,9 @@ from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 from sqlalchemy import or_, text
 
-try:
-    from src.models import db_session
-    from src.models.transaction import Transaction
-    from src.models.category import Category
-except ImportError:
-    from models import db_session
-    from models.transaction import Transaction
-    from models.category import Category
+from src.models import db_session
+from src.models.transaction import Transaction
+from src.models.category import Category
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/dashboard")
 
