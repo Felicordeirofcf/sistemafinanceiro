@@ -1,9 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Handle transaction type change (Receita/Despesa)
     const tipoReceita = document.getElementById('tipo-receita');
     const tipoDespesa = document.getElementById('tipo-despesa');
     const vencimentoGroup = document.getElementById('vencimento-group');
     const recorrenteGroup = document.getElementById('recorrente-group');
+    const recorrenteCheckbox = document.getElementById('recorrente');
+    const frequenciaGroup = document.getElementById('frequencia-group');
 
     function toggleVencimentoAndRecorrente() {
         if (tipoDespesa.checked) {
@@ -15,74 +16,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    tipoReceita.addEventListener('change', toggleVencimentoAndRecorrente);
-    tipoDespesa.addEventListener('change', toggleVencimentoAndRecorrente);
-
-    // Initial call to set correct state
-    toggleVencimentoAndRecorrente();
-
-    // Handle recorrente checkbox change
-    const recorrenteCheckbox = document.getElementById('recorrente');
-    const frequenciaGroup = document.getElementById('frequencia-group');
-
     function toggleFrequencia() {
-        if (recorrenteCheckbox.checked) {
-            frequenciaGroup.style.display = 'block';
-        } else {
-            frequenciaGroup.style.display = 'none';
-        }
+        frequenciaGroup.style.display = recorrenteCheckbox.checked ? 'block' : 'none';
     }
 
+    tipoReceita.addEventListener('change', toggleVencimentoAndRecorrente);
+    tipoDespesa.addEventListener('change', toggleVencimentoAndRecorrente);
     recorrenteCheckbox.addEventListener('change', toggleFrequencia);
 
-    // Initial call to set correct state
+    toggleVencimentoAndRecorrente();
     toggleFrequencia();
 
-    // Initialize DataTables for transactions table
     if ($.fn.DataTable) {
         $('#transactionsTable').DataTable({
-            "language": {
-                "url": "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
+            language: {
+                url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
             },
-            "order": [[1, "desc"]] // Order by Date (column 1) descending
+            order: [[1, 'desc']]
         });
     }
 
-    // Handle transaction form submission (AJAX)
-    $('#form-transacao').on('submit', function(e) {
+    $('#form-transacao').on('submit', async function(e) {
         e.preventDefault();
-        const form = $(this);
-        $.ajax({
-            url: form.attr('action'),
-            method: form.attr('method'),
-            data: form.serialize(),
-            success: function(response) {
-                if (response.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Sucesso!',
-                        text: response.message,
-                        showConfirmButton: false,
-                        timer: 1500
-                    }).then(() => {
-                        location.reload(); // Reload page to update data
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Erro!',
-                        text: response.message
-                    });
-                }
-            },
-            error: function(xhr) {
+        const form = this;
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch(form.action, {
+                method: form.method,
+                body: formData
+            });
+
+            if (response.redirected) {
+                window.location.href = response.url;
+                return;
+            }
+
+            const data = await response.json();
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message,
+                    showConfirmButton: false,
+                    timer: 1500
+                }).then(() => location.reload());
+            } else {
                 Swal.fire({
                     icon: 'error',
                     title: 'Erro!',
-                    text: 'Ocorreu um erro ao adicionar a transação.'
+                    text: data.message
                 });
             }
-        });
+        } catch (error) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Erro ao adicionar a transação.'
+            });
+        }
+    });
     });
 
     // Handle delete transaction
