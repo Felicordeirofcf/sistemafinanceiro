@@ -67,10 +67,13 @@ def add():
         db_session.commit()
 
         # Gerar transações recorrentes imediatamente após criar a transação principal
-        if is_recurring and tipo == "despesa":
-            generate_recurring_transactions(transaction)
+        if is_recurring:
+            generated_count = generate_recurring_transactions(transaction)
+            message = f"Transação adicionada com sucesso! {generated_count} transações recorrentes foram geradas automaticamente."
+        else:
+            message = "Transação adicionada com sucesso!"
 
-        return jsonify({"success": True, "message": "Transação adicionada com sucesso!"})
+        return jsonify({"success": True, "message": message})
 
     except Exception as e:
         return jsonify({"success": False, "message": f"Erro ao adicionar transação: {str(e)}"}), 500
@@ -324,7 +327,7 @@ def generate_recurring_transactions(transaction, months_ahead=12):
     Returns:
         int: Número de transações geradas
     """
-    if not transaction.is_recurring or transaction.tipo != "despesa":
+    if not transaction.is_recurring:
         return 0
 
     start_date = transaction.recurrence_start_date or transaction.data
@@ -381,8 +384,8 @@ def generate_recurring_transactions(transaction, months_ahead=12):
             valor=transaction.valor,
             tipo=transaction.tipo,
             data=next_date,
-            vencimento=next_date,  # Para despesas recorrentes, vencimento = data
-            pago=False,  # Sempre criar como não pago
+            vencimento=next_date if transaction.tipo == "despesa" else next_date,
+            pago=False if transaction.tipo == "despesa" else True,  # Receitas já marcadas como pagas
             categoria_id=transaction.categoria_id,
             observacoes=transaction.observacoes,
             parent_transaction_id=transaction.id,

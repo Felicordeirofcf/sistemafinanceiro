@@ -1,4 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Variável para controlar se os event listeners já foram registrados
+    let eventListenersRegistered = false;
+    
     // Função para formatar valor em moeda brasileira
     function formatCurrency(value) {
         if (value === null || value === undefined || value === '') return 'R$ 0,00';
@@ -52,44 +55,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const valorInputs = document.querySelectorAll('input[name="valor"], #valor, #edit-valor');
         
         valorInputs.forEach(input => {
-            // Permitir vírgula como separador decimal
-            input.addEventListener('input', function(e) {
-                let value = e.target.value;
-                
-                // Permitir apenas números, vírgula e ponto
-                value = value.replace(/[^\d,\.]/g, '');
-                
-                // Limitar a uma vírgula ou ponto
-                const commaCount = (value.match(/,/g) || []).length;
-                const dotCount = (value.match(/\./g) || []).length;
-                
-                if (commaCount > 1) {
-                    value = value.replace(/,(?=.*,)/g, '');
-                }
-                if (dotCount > 1) {
-                    value = value.replace(/\.(?=.*\.)/g, '');
-                }
-                
-                e.target.value = value;
-            });
-
-            // Converter vírgula para ponto antes do envio
-            input.addEventListener('blur', function(e) {
-                let value = e.target.value;
-                if (value.includes(',')) {
-                    // Se tem vírgula, converte para ponto para compatibilidade com HTML5
-                    e.target.value = value.replace(',', '.');
-                }
-            });
-
-            // Reconverter ponto para vírgula ao focar (UX brasileiro)
-            input.addEventListener('focus', function(e) {
-                let value = e.target.value;
-                if (value.includes('.') && !value.includes(',')) {
-                    e.target.value = value.replace('.', ',');
-                }
-            });
+            // Remover listeners existentes para evitar duplicação
+            input.removeEventListener('input', handleCurrencyInput);
+            input.removeEventListener('blur', handleCurrencyBlur);
+            input.removeEventListener('focus', handleCurrencyFocus);
+            
+            // Adicionar listeners
+            input.addEventListener('input', handleCurrencyInput);
+            input.addEventListener('blur', handleCurrencyBlur);
+            input.addEventListener('focus', handleCurrencyFocus);
         });
+    }
+
+    function handleCurrencyInput(e) {
+        let value = e.target.value;
+        
+        // Permitir apenas números, vírgula e ponto
+        value = value.replace(/[^\d,\.]/g, '');
+        
+        // Limitar a uma vírgula ou ponto
+        const commaCount = (value.match(/,/g) || []).length;
+        const dotCount = (value.match(/\./g) || []).length;
+        
+        if (commaCount > 1) {
+            value = value.replace(/,(?=.*,)/g, '');
+        }
+        if (dotCount > 1) {
+            value = value.replace(/\.(?=.*\.)/g, '');
+        }
+        
+        e.target.value = value;
+    }
+
+    function handleCurrencyBlur(e) {
+        let value = e.target.value;
+        if (value.includes(',')) {
+            // Se tem vírgula, converte para ponto para compatibilidade com HTML5
+            e.target.value = value.replace(',', '.');
+        }
+    }
+
+    function handleCurrencyFocus(e) {
+        let value = e.target.value;
+        if (value.includes('.') && !value.includes(',')) {
+            e.target.value = value.replace('.', ',');
+        }
     }
 
     const tipoReceita = document.getElementById('tipo-receita');
@@ -102,34 +112,34 @@ document.addEventListener('DOMContentLoaded', function() {
     const pagoGroup = document.getElementById('pago-group');
 
     function toggleVencimentoAndRecorrente() {
-        if (tipoDespesa.checked) {
-            vencimentoGroup.style.display = 'block';
-            recorrenteGroup.style.display = 'block';
-            pagoGroup.style.display = 'block';
+        if (tipoDespesa && tipoDespesa.checked) {
+            if (vencimentoGroup) vencimentoGroup.style.display = 'block';
+            if (recorrenteGroup) recorrenteGroup.style.display = 'block';
+            if (pagoGroup) pagoGroup.style.display = 'block';
         } else {
-            vencimentoGroup.style.display = 'none';
-            recorrenteGroup.style.display = 'none';
-            pagoGroup.style.display = 'none';
+            if (vencimentoGroup) vencimentoGroup.style.display = 'none';
+            if (recorrenteGroup) recorrenteGroup.style.display = 'none';
+            if (pagoGroup) pagoGroup.style.display = 'none';
             // Reset campos quando muda para receita
-            recorrenteCheckbox.checked = false;
+            if (recorrenteCheckbox) recorrenteCheckbox.checked = false;
             toggleFrequencia();
         }
     }
 
     function toggleFrequencia() {
-        if (recorrenteCheckbox.checked) {
-            frequenciaGroup.style.display = 'block';
-            dataFimGroup.style.display = 'block';
+        if (recorrenteCheckbox && recorrenteCheckbox.checked) {
+            if (frequenciaGroup) frequenciaGroup.style.display = 'block';
+            if (dataFimGroup) dataFimGroup.style.display = 'block';
         } else {
-            frequenciaGroup.style.display = 'none';
-            dataFimGroup.style.display = 'none';
+            if (frequenciaGroup) frequenciaGroup.style.display = 'none';
+            if (dataFimGroup) dataFimGroup.style.display = 'none';
         }
     }
 
-    // Event listeners
-    tipoReceita.addEventListener('change', toggleVencimentoAndRecorrente);
-    tipoDespesa.addEventListener('change', toggleVencimentoAndRecorrente);
-    recorrenteCheckbox.addEventListener('change', toggleFrequencia);
+    // Event listeners para campos de tipo
+    if (tipoReceita) tipoReceita.addEventListener('change', toggleVencimentoAndRecorrente);
+    if (tipoDespesa) tipoDespesa.addEventListener('change', toggleVencimentoAndRecorrente);
+    if (recorrenteCheckbox) recorrenteCheckbox.addEventListener('change', toggleFrequencia);
 
     // Inicializar estado
     toggleVencimentoAndRecorrente();
@@ -139,34 +149,119 @@ document.addEventListener('DOMContentLoaded', function() {
     formatExistingValues();
     setupCurrencyInputs();
 
-    // Validação do formulário
-    const form = document.getElementById('form-transacao');
-    form.addEventListener('submit', function(e) {
+    // Inicializar DataTables de forma mais robusta
+    function initializeDataTable() {
+        try {
+            const tableElement = document.getElementById('transactionsTable');
+            if (!tableElement) {
+                console.log('Tabela transactionsTable não encontrada');
+                return;
+            }
+
+            // Destruir DataTable existente se houver
+            if ($.fn.DataTable && $.fn.DataTable.isDataTable('#transactionsTable')) {
+                $('#transactionsTable').DataTable().clear().destroy();
+                $('#transactionsTable').empty();
+            }
+            
+            // Aguardar um momento para garantir que a destruição foi completa
+            setTimeout(() => {
+                try {
+                    const $table = $('#transactionsTable');
+                    
+                    // Verificar se a tabela ainda existe após possível destruição
+                    if ($table.length === 0) {
+                        console.log('Tabela não existe mais após destruição');
+                        return;
+                    }
+
+                    const headerCols = $table.find('thead th').length;
+                    const bodyRows = $table.find('tbody tr').length;
+                    
+                    console.log(`Tabela encontrada - Colunas: ${headerCols}, Linhas: ${bodyRows}`);
+                    
+                    // Só inicializar se a tabela tem estrutura válida
+                    if (headerCols >= 4) { // Mínimo de 4 colunas esperadas
+                        // Verificar se há dados reais (não apenas mensagem de "nenhum registro")
+                        const hasRealData = bodyRows > 0 && $table.find('tbody tr td[colspan]').length === 0;
+                        
+                        const config = {
+                            destroy: true, // Permitir reinicialização
+                            language: {
+                                url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
+                            },
+                            columnDefs: [
+                                { orderable: false, targets: -1 } // Última coluna (ações) não ordenável
+                            ],
+                            responsive: true,
+                            pageLength: 10,
+                            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+                            info: hasRealData,
+                            paging: hasRealData,
+                            searching: hasRealData,
+                            autoWidth: false
+                        };
+                        
+                        // Só definir ordenação se há dados reais
+                        if (hasRealData && headerCols >= 2) {
+                            config.order = [[1, 'desc']]; // Ordenar por segunda coluna (data)
+                        }
+                        
+                        $table.DataTable(config);
+                        console.log('DataTable inicializado com sucesso');
+                        
+                    } else {
+                        console.log('Estrutura da tabela inválida para DataTable');
+                    }
+                } catch (innerError) {
+                    console.warn('Erro na inicialização interna do DataTable:', innerError);
+                }
+            }, 100);
+            
+        } catch (error) {
+            console.warn('Erro ao inicializar DataTable:', error);
+        }
+    }
+
+    // Função única para submissão do formulário
+    async function submitTransactionForm(e) {
         e.preventDefault();
+        e.stopPropagation();
+        
+        const form = e.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        
+        // Verificar se já está processando para evitar dupla submissão
+        if (submitBtn.disabled) {
+            return false;
+        }
         
         // Validações customizadas
         const valorInput = document.getElementById('valor');
-        let valor = valorInput.value.replace(',', '.');
-        const descricao = document.getElementById('descricao').value.trim();
+        let valor = valorInput ? valorInput.value.replace(',', '.') : '';
+        const descricaoInput = document.getElementById('descricao');
+        const descricao = descricaoInput ? descricaoInput.value.trim() : '';
         
         let isValid = true;
         
         // Validar valor
         if (!valor || parseFloat(valor) <= 0) {
-            valorInput.classList.add('is-invalid');
+            if (valorInput) valorInput.classList.add('is-invalid');
             isValid = false;
         } else {
-            valorInput.classList.remove('is-invalid');
-            // Garantir que o valor seja enviado com ponto decimal
-            valorInput.value = valor;
+            if (valorInput) {
+                valorInput.classList.remove('is-invalid');
+                // Garantir que o valor seja enviado com ponto decimal
+                valorInput.value = valor;
+            }
         }
         
         // Validar descrição
         if (!descricao) {
-            document.getElementById('descricao').classList.add('is-invalid');
+            if (descricaoInput) descricaoInput.classList.add('is-invalid');
             isValid = false;
         } else {
-            document.getElementById('descricao').classList.remove('is-invalid');
+            if (descricaoInput) descricaoInput.classList.remove('is-invalid');
         }
         
         if (!isValid) {
@@ -175,23 +270,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 title: 'Campos obrigatórios',
                 text: 'Por favor, preencha todos os campos obrigatórios corretamente.'
             });
-            return;
+            return false;
         }
-        
-        // Se passou na validação, submeter via AJAX
-        submitForm();
-    });
-
-    async function submitForm() {
-        const form = document.getElementById('form-transacao');
-        const formData = new FormData(form);
-        const submitBtn = form.querySelector('button[type="submit"]');
         
         // Desabilitar botão durante envio
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Adicionando...';
 
         try {
+            const formData = new FormData(form);
+            
             const response = await fetch(form.action, {
                 method: 'POST',
                 body: formData
@@ -210,8 +298,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Limpar formulário
                     form.reset();
                     // Resetar data para hoje
-                    document.getElementById('data').value = new Date().toISOString().split('T')[0];
-                    document.getElementById('vencimento').value = new Date().toISOString().split('T')[0];
+                    const dataInput = document.getElementById('data');
+                    const vencimentoInput = document.getElementById('vencimento');
+                    if (dataInput) dataInput.value = new Date().toISOString().split('T')[0];
+                    if (vencimentoInput) vencimentoInput.value = new Date().toISOString().split('T')[0];
                     // Resetar visibilidade dos campos
                     toggleVencimentoAndRecorrente();
                     toggleFrequencia();
@@ -226,6 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
         } catch (error) {
+            console.error('Erro ao enviar formulário:', error);
             Swal.fire({
                 icon: 'error',
                 title: 'Erro!',
@@ -236,204 +327,134 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-plus-circle me-2"></i>Adicionar Transação';
         }
+        
+        return false;
     }
 
-    // Inicializar DataTables
-    function initializeDataTable() {
-        // Destruir DataTable existente se houver
-        if ($.fn.DataTable.isDataTable('#transactionsTable')) {
-            $('#transactionsTable').DataTable().destroy();
+    // Registrar event listeners apenas uma vez
+    function registerEventListeners() {
+        if (eventListenersRegistered) {
+            return;
         }
         
-        // Verificar se a tabela existe e tem estrutura correta
-        const table = $('#transactionsTable');
-        const headerCols = table.find('thead th').length;
-        const hasData = table.find('tbody tr').length > 0;
-        
-        // Só inicializar se a tabela tem cabeçalho e pelo menos uma linha
-        if (table.length && headerCols === 5) {
-            // Verificar se há dados reais (não apenas a mensagem de "nenhum registro")
-            const hasRealData = table.find('tbody tr').length > 0 && 
-                               !table.find('tbody tr td[colspan]').length;
-            
-            const config = {
-                language: {
-                    url: "//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json"
-                },
-                columnDefs: [
-                    { orderable: false, targets: [4] } // Desabilitar ordenação na coluna de ações
-                ],
-                responsive: true,
-                pageLength: 10,
-                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-                info: hasRealData,
-                paging: hasRealData,
-                searching: hasRealData
-            };
-            
-            // Só definir ordenação se há dados reais
-            if (hasRealData) {
-                config.order = [[1, 'desc']]; // Ordenar por data (coluna 1)
-            }
-            
-            try {
-                table.DataTable(config);
-            } catch (error) {
-                console.warn('Erro ao inicializar DataTable:', error);
-            }
+        // Event listener para o formulário de transação
+        const form = document.getElementById('form-transacao');
+        if (form) {
+            // Remover listeners existentes
+            form.removeEventListener('submit', submitTransactionForm);
+            // Adicionar listener único
+            form.addEventListener('submit', submitTransactionForm);
         }
+
+        // Event listeners para ações da tabela (usando delegação de eventos)
+        $(document).off('click', '.delete-btn').on('click', '.delete-btn', function() {
+            const transactionId = $(this).data('id');
+            Swal.fire({
+                title: 'Tem certeza?',
+                text: "Você não poderá reverter isso!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sim, deletar!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/transactions/delete/${transactionId}`,
+                        method: 'POST',
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire(
+                                    'Deletado!',
+                                    'A transação foi deletada.',
+                                    'success'
+                                ).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire(
+                                    'Erro!',
+                                    response.message,
+                                    'error'
+                                );
+                            }
+                        },
+                        error: function() {
+                            Swal.fire(
+                                'Erro!',
+                                'Ocorreu um erro ao deletar a transação.',
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
+
+        $(document).off('click', '.pay-btn').on('click', '.pay-btn', function() {
+            const transactionId = $(this).data('id');
+            Swal.fire({
+                title: 'Marcar como pago?',
+                text: "Esta despesa será marcada como paga.",
+                icon: 'info',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sim, marcar como pago!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: `/transactions/toggle_status/${transactionId}`,
+                        method: 'POST',
+                        success: function(response) {
+                            if (response.success) {
+                                Swal.fire(
+                                    'Pago!',
+                                    'A despesa foi marcada como paga.',
+                                    'success'
+                                ).then(() => {
+                                    location.reload();
+                                });
+                            } else {
+                                Swal.fire(
+                                    'Erro!',
+                                    response.message,
+                                    'error'
+                                );
+                            }
+                        },
+                        error: function() {
+                            Swal.fire(
+                                'Erro!',
+                                'Ocorreu um erro ao marcar a despesa como paga.',
+                                'error'
+                            );
+                        }
+                    });
+                }
+            });
+        });
+
+        eventListenersRegistered = true;
     }
 
     // Aguardar carregamento completo antes de inicializar
     $(document).ready(function() {
-        // Aguardar um pouco para garantir que o DOM está completamente carregado
         setTimeout(function() {
             initializeDataTable();
-            // Aplicar formatação de moeda após inicialização
+            formatExistingValues();
+            registerEventListeners();
+        }, 300);
+    });
+
+    // Aguardar carregamento da janela
+    $(window).on('load', function() {
+        setTimeout(function() {
+            initializeDataTable();
             formatExistingValues();
         }, 200);
-    });
-
-    // Reinicializar após mudanças de filtro
-    $('form[action*="dashboard"]').on('submit', function() {
-        // Aguardar o recarregamento da página e reinicializar
-        setTimeout(function() {
-            initializeDataTable();
-            formatExistingValues();
-        }, 500);
-    });
-
-    $('#form-transacao').on('submit', async function(e) {
-        e.preventDefault();
-        const form = this;
-        const formData = new FormData(form);
-
-        try {
-            const response = await fetch(form.action, {
-                method: form.method,
-                body: formData
-            });
-
-            if (response.redirected) {
-                window.location.href = response.url;
-                return;
-            }
-
-            const data = await response.json();
-            if (data.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Sucesso!',
-                    text: data.message,
-                    showConfirmButton: false,
-                    timer: 1500
-                }).then(() => location.reload());
-            } else {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Erro!',
-                    text: data.message
-                });
-            }
-        } catch (error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Erro!',
-                text: 'Erro ao adicionar a transação.'
-            });
-        }
-    });
-
-    // Handle delete transaction
-    $(document).on('click', '.delete-btn', function() {
-        const transactionId = $(this).data('id');
-        Swal.fire({
-            title: 'Tem certeza?',
-            text: "Você não poderá reverter isso!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sim, deletar!',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: `/transactions/delete/${transactionId}`,
-                    method: 'POST',
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire(
-                                'Deletado!',
-                                'A transação foi deletada.',
-                                'success'
-                            ).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire(
-                                'Erro!',
-                                response.message,
-                                'error'
-                            );
-                        }
-                    },
-                    error: function() {
-                        Swal.fire(
-                            'Erro!',
-                            'Ocorreu um erro ao deletar a transação.',
-                            'error'
-                        );
-                    }
-                });
-            }
-        });
-    });
-
-    // Handle pay transaction
-    $(document).on('click', '.pay-btn', function() {
-        const transactionId = $(this).data('id');
-        Swal.fire({
-            title: 'Marcar como pago?',
-            text: "Esta despesa será marcada como paga.",
-            icon: 'info',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Sim, marcar como pago!',
-            cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.ajax({
-                    url: `/transactions/toggle_status/${transactionId}`,
-                    method: 'POST',
-                    success: function(response) {
-                        if (response.success) {
-                            Swal.fire(
-                                'Pago!',
-                                'A despesa foi marcada como paga.',
-                                'success'
-                            ).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire(
-                                'Erro!',
-                                response.message,
-                                'error'
-                            );
-                        }
-                    },
-                    error: function() {
-                        Swal.fire(
-                            'Erro!',
-                            'Ocorreu um erro ao marcar a despesa como paga.',
-                            'error'
-                        );
-                    }
-                });
-            }
-        });
     });
 
     // Handle edit transaction modal populate
