@@ -805,36 +805,34 @@ document.addEventListener('DOMContentLoaded', function() {
         const currentMonth = new Date().getMonth() + 1;
         const currentYear = new Date().getFullYear();
         
-        $.ajax({
-            url: `/dashboard/chart-data?mes=${currentMonth}&ano=${currentYear}`,
-            method: 'GET',
-            success: function(response) {
-                // Bar Chart (Receitas x Despesas)
-                const barCtx = document.getElementById('barChart');
-                if (barCtx) {
-                    new Chart(barCtx, {
-                        type: 'bar',
-                        data: response.bar_chart,
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { display: false }
-                            }
+         $.ajax({
+        url: `/dashboard/chart-data?mes=${currentMonth}&ano=${currentYear}`,
+        method: 'GET',
+        success: function(response) {
+            // Bar Chart (Receitas x Despesas)
+            const barCtx = document.getElementById('barChart');
+            if (barCtx) {
+                new Chart(barCtx, {
+                    type: 'bar',
+                    data: response.bar_chart,
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false }
                         }
-                    });
-                }
-            },
-            error: function() {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Erro!',
-                    text: 'Ocorreu um erro ao carregar os dados dos gráficos.'
+                    }
                 });
             }
-        });
-    }
+        },
+        error: function() {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Ocorreu um erro ao carregar os dados dos gráficos.'
+            });
+        }
+    });
+}
 
-    // Load chart data on page load
-    loadChartData();
-});
-
+// Load chart data on page load
+loadChartData();
