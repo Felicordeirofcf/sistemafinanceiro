@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy import text
+from flask import jsonify
 
 from src.models import db_session
 from src.models.transaction import Transaction
@@ -150,18 +151,21 @@ def chart_data():
         Transaction.data < end_date
     ).all()
 
+    receitas_total = sum(t.valor for t in transactions if t.tipo == "receita")
+    despesas_total = sum(t.valor for t in transactions if t.tipo == "despesa")
+
     bar_chart_data = {
         "labels": ["Receitas", "Despesas"],
         "datasets": [
             {
-                "data": [
-                    sum(t.valor for t in transactions if t.tipo == "receita"),
-                    sum(t.valor for t in transactions if t.tipo == "despesa")
-                ],
+                "label": f"Mês: {selected_month}/{selected_year}",
+                "data": [receitas_total, despesas_total],
                 "backgroundColor": ["#2ecc71", "#e74c3c"]
             }
         ]
     }
+
+    return jsonify(bar_chart_data)
 
     fixed_expenses = sum(t.valor for t in transactions if t.tipo == "despesa" and (t.is_recurring or t.parent_transaction_id))
     variable_expenses = sum(t.valor for t in transactions if t.tipo == "despesa" and not (t.is_recurring or t.parent_transaction_id))
